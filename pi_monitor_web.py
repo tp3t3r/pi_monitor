@@ -123,115 +123,115 @@ def generate_graph(metric, limit=None, hours=None):
     
         fig, ax = plt.subplots(figsize=(12, 6))
     
-    # Add alternating day backgrounds only for "all" view
-    if timestamps and not hours:
-        start_date = timestamps[0].date()
-        end_date = timestamps[-1].date()
-        current_date = start_date
-        color_toggle = True
-        while current_date <= end_date:
-            day_start = datetime.combine(current_date, datetime.min.time())
-            day_end = datetime.combine(current_date, datetime.max.time())
-            if color_toggle:
-                ax.axvspan(day_start, day_end, alpha=0.1, color='gray')
-            color_toggle = not color_toggle
-            current_date = current_date + timedelta(days=1)
-    
-    # Downsample for "all" view
-    should_downsample = not hours and not limit
-    
-    if metric == 'cpu':
-        values = [d['cpu_usage'] for d in data]
-        if should_downsample:
-            timestamps, values = downsample_data(timestamps, values)
-        plot_with_gaps(ax, timestamps, values, gaps, label='CPU Usage %')
-        ax.set_ylabel('CPU Usage (%)')
-        ax.set_title('CPU Usage Over Time')
-    elif metric == 'temp':
-        values = [d['cpu_temp'] for d in data]
-        if should_downsample:
-            timestamps, values = downsample_data(timestamps, values)
-        plot_with_gaps(ax, timestamps, values, gaps, label='CPU Temp °C', color='red')
-        ax.set_ylabel('Temperature (°C)')
-        ax.set_title('CPU Temperature Over Time')
-        ax.set_ylim(30, 70)
-    elif metric == 'memory':
-        values = [d.get('memory_usage', 0) for d in data]
-        if should_downsample:
-            timestamps, values = downsample_data(timestamps, values)
-        ax.plot(timestamps, values, label='Memory Usage %', color='green', linewidth=2)
-        ax.set_ylabel('Memory Usage (%)')
-        ax.set_title('Memory Usage Over Time')
-    elif metric == 'disk':
-        disk_data = {}
-        for d in data:
-            for path, usage in d['disk_usage'].items():
-                if usage is not None:
-                    disk_data.setdefault(path, []).append(usage)
-        for path, values in disk_data.items():
-            ts = timestamps[:len(values)]
+        # Add alternating day backgrounds only for "all" view
+        if timestamps and not hours:
+            start_date = timestamps[0].date()
+            end_date = timestamps[-1].date()
+            current_date = start_date
+            color_toggle = True
+            while current_date <= end_date:
+                day_start = datetime.combine(current_date, datetime.min.time())
+                day_end = datetime.combine(current_date, datetime.max.time())
+                if color_toggle:
+                    ax.axvspan(day_start, day_end, alpha=0.1, color='gray')
+                color_toggle = not color_toggle
+                current_date = current_date + timedelta(days=1)
+        
+        # Downsample for "all" view
+        should_downsample = not hours and not limit
+        
+        if metric == 'cpu':
+            values = [d['cpu_usage'] for d in data]
             if should_downsample:
-                ts, values = downsample_data(ts, values)
-            ax.plot(ts, values, label=path, linewidth=2)
-        ax.set_ylabel('Disk Usage (%)')
-        ax.set_title('Disk Usage Over Time')
-        ax.legend()
-    elif metric == 'network':
-        net_data = {}
-        for d in data:
-            for iface, stats in d['network'].items():
-                net_data.setdefault(f"{iface}_rx", []).append(stats.get('rx_speed', 0) / 1024 / 1024)
-                net_data.setdefault(f"{iface}_tx", []).append(stats.get('tx_speed', 0) / 1024 / 1024)
-        for label, values in net_data.items():
-            ts = timestamps[:len(values)]
+                timestamps, values = downsample_data(timestamps, values)
+            plot_with_gaps(ax, timestamps, values, gaps, label='CPU Usage %')
+            ax.set_ylabel('CPU Usage (%)')
+            ax.set_title('CPU Usage Over Time')
+        elif metric == 'temp':
+            values = [d['cpu_temp'] for d in data]
             if should_downsample:
-                ts, values = downsample_data(ts, values)
-            ax.plot(ts, values, label=label, linewidth=2)
-        ax.set_ylabel('Speed (MB/s)')
-        ax.set_title('Network Speed Over Time')
-        ax.legend()
-    elif metric == 'diskio':
-        io_data = {}
-        for d in data:
-            for device, stats in d.get('disk_io', {}).items():
-                io_data.setdefault(f"{device}_read", []).append(stats.get('read_count', 0))
-                io_data.setdefault(f"{device}_write", []).append(stats.get('write_count', 0))
-        for label, values in io_data.items():
-            ts = timestamps[:len(values)]
+                timestamps, values = downsample_data(timestamps, values)
+            plot_with_gaps(ax, timestamps, values, gaps, label='CPU Temp °C', color='red')
+            ax.set_ylabel('Temperature (°C)')
+            ax.set_title('CPU Temperature Over Time')
+            ax.set_ylim(30, 70)
+        elif metric == 'memory':
+            values = [d.get('memory_usage', 0) for d in data]
             if should_downsample:
-                ts, values = downsample_data(ts, values)
-            ax.plot(ts, values, label=label, linewidth=2)
-        ax.set_ylabel('Operations per interval')
-        ax.set_title('Disk I/O Operations Over Time')
-        ax.set_ylim(bottom=0)
-        ax.legend()
-    
-    # Set x-axis formatting
-    from matplotlib.dates import HourLocator, MinuteLocator, DateFormatter
-    from matplotlib.ticker import MaxNLocator
-    
-    if hours:
-        # For hourly view: show only 6 labels (every 10 minutes for 60 records)
-        ax.xaxis.set_major_locator(MaxNLocator(nbins=6))
-        ax.xaxis.set_major_formatter(DateFormatter('%H:%M'))
-        # Add minor ticks for every minute
-        ax.xaxis.set_minor_locator(MinuteLocator(interval=1))
-    else:
-        # For all records: show labels every 3 hours
-        ax.xaxis.set_major_locator(HourLocator(interval=3))
-        ax.xaxis.set_major_formatter(DateFormatter('%m-%d\n%H:%M'))
-    
-    # Start graph at the leftmost data point
-    if timestamps:
-        ax.set_xlim(left=timestamps[0])
-    
-    plt.xticks(rotation=0)
-    plt.tight_layout()
-    
-    
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    plt.close()
+                timestamps, values = downsample_data(timestamps, values)
+            ax.plot(timestamps, values, label='Memory Usage %', color='green', linewidth=2)
+            ax.set_ylabel('Memory Usage (%)')
+            ax.set_title('Memory Usage Over Time')
+        elif metric == 'disk':
+            disk_data = {}
+            for d in data:
+                for path, usage in d['disk_usage'].items():
+                    if usage is not None:
+                        disk_data.setdefault(path, []).append(usage)
+            for path, values in disk_data.items():
+                ts = timestamps[:len(values)]
+                if should_downsample:
+                    ts, values = downsample_data(ts, values)
+                ax.plot(ts, values, label=path, linewidth=2)
+            ax.set_ylabel('Disk Usage (%)')
+            ax.set_title('Disk Usage Over Time')
+            ax.legend()
+        elif metric == 'network':
+            net_data = {}
+            for d in data:
+                for iface, stats in d['network'].items():
+                    net_data.setdefault(f"{iface}_rx", []).append(stats.get('rx_speed', 0) / 1024 / 1024)
+                    net_data.setdefault(f"{iface}_tx", []).append(stats.get('tx_speed', 0) / 1024 / 1024)
+            for label, values in net_data.items():
+                ts = timestamps[:len(values)]
+                if should_downsample:
+                    ts, values = downsample_data(ts, values)
+                ax.plot(ts, values, label=label, linewidth=2)
+            ax.set_ylabel('Speed (MB/s)')
+            ax.set_title('Network Speed Over Time')
+            ax.legend()
+        elif metric == 'diskio':
+            io_data = {}
+            for d in data:
+                for device, stats in d.get('disk_io', {}).items():
+                    io_data.setdefault(f"{device}_read", []).append(stats.get('read_count', 0))
+                    io_data.setdefault(f"{device}_write", []).append(stats.get('write_count', 0))
+            for label, values in io_data.items():
+                ts = timestamps[:len(values)]
+                if should_downsample:
+                    ts, values = downsample_data(ts, values)
+                ax.plot(ts, values, label=label, linewidth=2)
+            ax.set_ylabel('Operations per interval')
+            ax.set_title('Disk I/O Operations Over Time')
+            ax.set_ylim(bottom=0)
+            ax.legend()
+        
+        # Set x-axis formatting
+        from matplotlib.dates import HourLocator, MinuteLocator, DateFormatter
+        from matplotlib.ticker import MaxNLocator
+        
+        if hours:
+            # For hourly view: show only 6 labels (every 10 minutes for 60 records)
+            ax.xaxis.set_major_locator(MaxNLocator(nbins=6))
+            ax.xaxis.set_major_formatter(DateFormatter('%H:%M'))
+            # Add minor ticks for every minute
+            ax.xaxis.set_minor_locator(MinuteLocator(interval=1))
+        else:
+            # For all records: show labels every 3 hours
+            ax.xaxis.set_major_locator(HourLocator(interval=3))
+            ax.xaxis.set_major_formatter(DateFormatter('%m-%d\n%H:%M'))
+        
+        # Start graph at the leftmost data point
+        if timestamps:
+            ax.set_xlim(left=timestamps[0])
+        
+        plt.xticks(rotation=0)
+        plt.tight_layout()
+        
+        
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        plt.close()
         buf.seek(0)
         return buf.read()
     
