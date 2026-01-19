@@ -88,7 +88,7 @@ def generate_graph(metric, limit=None, hours=None):
                 gaps.add(i)
         
         if not gaps:
-            ax.plot(ts, vals, linewidth=2, **kwargs)
+            ax.plot(ts, vals, linewidth=1.5, **kwargs)
             return
         
         # Split into segments
@@ -101,22 +101,24 @@ def generate_graph(metric, limit=None, hours=None):
         if start < len(ts):
             segments.append((start, len(ts)))
         
-        # Plot segments
+        # Plot segments with consistent color
         label = kwargs.pop('label', None)
         color = kwargs.pop('color', None)
-        for i, (s, e) in enumerate(segments):
-            plot_kwargs = kwargs.copy()
-            if color:
-                plot_kwargs['color'] = color
-            if i == 0 and label:
-                plot_kwargs['label'] = label
-            ax.plot(ts[s:e], vals[s:e], linewidth=2, **plot_kwargs)
+        
+        # Plot first segment to get color
+        s, e = segments[0]
+        line = ax.plot(ts[s:e], vals[s:e], linewidth=1.5, label=label, color=color, **kwargs)[0]
+        plot_color = line.get_color()
+        
+        # Plot remaining segments with same color
+        for i in range(1, len(segments)):
+            s, e = segments[i]
+            ax.plot(ts[s:e], vals[s:e], linewidth=1.5, color=plot_color, **kwargs)
             
             # Add dotted line across gap
-            if i < len(segments) - 1 and e < len(ts):
-                gap_color = color if color else (ax.lines[-1].get_color() if ax.lines else None)
-                ax.plot([ts[e-1], ts[e]], [vals[e-1], vals[e]], 
-                       linestyle=':', linewidth=2, color=gap_color)
+            prev_e = segments[i-1][1]
+            ax.plot([ts[prev_e-1], ts[s]], [vals[prev_e-1], vals[s]], 
+                   linestyle=':', linewidth=1.5, color=plot_color)
     
     try:
         data = read_logs(limit=limit, hours=hours)
