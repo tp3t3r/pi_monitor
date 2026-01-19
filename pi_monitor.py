@@ -4,6 +4,8 @@ import os
 import time
 import json
 import signal
+import cProfile
+import pstats
 from datetime import datetime, timedelta
 
 # Load config
@@ -140,6 +142,9 @@ def flush_buffer():
 
 print(f"Starting monitoring (interval: {INTERVAL}s, retention: {RETENTION_DAYS} days)")
 
+ENABLE_PROFILING = os.getenv('ENABLE_PROFILING', 'false').lower() == 'true'
+profiler = cProfile.Profile() if ENABLE_PROFILING else None
+
 buffer = []
 last_write = datetime.now()
 
@@ -149,12 +154,34 @@ def flush_buffer(signum=None, frame=None):
         with open(LOG_FILE, 'a') as f:
             for e in buffer:
                 f.write(json.dumps(e) + '\n')
-        print(f"Flushed {len(buffer)} records to disk")
         buffer = []
         last_write = datetime.now()
+        
+        if profiler:
+            profiler.disable()
+            stats = pstats.Stats(profiler)
+            stats.dump_stats('/var/log/pi_monitor_profile.stats')
+            profiler.clear()
+            profiler.enable()
 
-# Register signal handler for manual flush (SIGUSR1)
 signal.signal(signal.SIGUSR1, flush_buffer)
+
+if ENABLE_PROFILING:
+    profiler.enable()
+
+# Collect initial data immediately
+entry = {
+    'timestamp': datetime.now().isoformat(),
+    'cpu_usage': get_cpu_usage(),
+    'cpu_temp': get_cpu_temp(),
+    'memory_usage': get_memory_usage(),
+    'network': get_net_stats(),
+    'disk_usage': get_disk_usage(),
+    'disk_io': get_disk_io()
+}
+buffer.append(entry)
+with open('/dev/shm/pi_monitor_buffer.json', 'w') as f:
+    json.dump(buffer, f)
 
 while True:
     entry = {
