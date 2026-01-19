@@ -208,6 +208,10 @@ while True:
         buffer = []
         last_write = datetime.now()
         
+        # Update buffer file immediately after clearing
+        with open('/dev/shm/pi_monitor_buffer.json', 'w') as f:
+            json.dump(buffer, f)
+        
         # Cleanup old data after writing
         cleanup_old_data()
     

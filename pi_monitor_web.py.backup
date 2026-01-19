@@ -82,7 +82,7 @@ def generate_graph(metric, limit=None, hours=None):
     
     timestamps = [datetime.fromisoformat(d['timestamp']) for d in data]
     
-    fig, ax = plt.subplots(figsize=(24, 12))
+    fig, ax = plt.subplots(figsize=(12, 6))
     
     # Add alternating day backgrounds only for "all" view
     if timestamps and not hours:
