@@ -164,6 +164,7 @@ def generate_graph(metric, limit=None, hours=None):
             ax.plot(ts, values, label=label)
         ax.set_ylabel('Operations per interval')
         ax.set_title('Disk I/O Operations Over Time')
+        ax.set_ylim(bottom=0)
         ax.legend()
     
     # Set x-axis formatting
