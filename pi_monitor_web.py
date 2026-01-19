@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import sys
 import json
 from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -76,13 +77,15 @@ def downsample_data(timestamps, values, max_points=200):
     return downsampled_ts, downsampled_vals
 
 def generate_graph(metric, limit=None, hours=None):
-    data = read_logs(limit=limit, hours=hours)
-    if not data:
-        return None
+    try:
+        data = read_logs(limit=limit, hours=hours)
+        if not data:
+            print(f"DEBUG: No data for metric={metric}, limit={limit}, hours={hours}", file=sys.stderr)
+            return None
     
-    timestamps = [datetime.fromisoformat(d['timestamp']) for d in data]
+        timestamps = [datetime.fromisoformat(d['timestamp']) for d in data]
     
-    fig, ax = plt.subplots(figsize=(24, 12))
+        fig, ax = plt.subplots(figsize=(12, 6))
     
     # Add alternating day backgrounds only for "all" view
     if timestamps and not hours:
@@ -105,14 +108,14 @@ def generate_graph(metric, limit=None, hours=None):
         values = [d['cpu_usage'] for d in data]
         if should_downsample:
             timestamps, values = downsample_data(timestamps, values)
-        ax.plot(timestamps, values, label='CPU Usage %')
+        ax.plot(timestamps, values, label='CPU Usage %', linewidth=2)
         ax.set_ylabel('CPU Usage (%)')
         ax.set_title('CPU Usage Over Time')
     elif metric == 'temp':
         values = [d['cpu_temp'] for d in data]
         if should_downsample:
             timestamps, values = downsample_data(timestamps, values)
-        ax.plot(timestamps, values, label='CPU Temp °C', color='red')
+        ax.plot(timestamps, values, label='CPU Temp °C', color='red', linewidth=2)
         ax.set_ylabel('Temperature (°C)')
         ax.set_title('CPU Temperature Over Time')
         ax.set_ylim(30, 70)
@@ -120,7 +123,7 @@ def generate_graph(metric, limit=None, hours=None):
         values = [d.get('memory_usage', 0) for d in data]
         if should_downsample:
             timestamps, values = downsample_data(timestamps, values)
-        ax.plot(timestamps, values, label='Memory Usage %', color='green')
+        ax.plot(timestamps, values, label='Memory Usage %', color='green', linewidth=2)
         ax.set_ylabel('Memory Usage (%)')
         ax.set_title('Memory Usage Over Time')
     elif metric == 'disk':
@@ -133,7 +136,7 @@ def generate_graph(metric, limit=None, hours=None):
             ts = timestamps[:len(values)]
             if should_downsample:
                 ts, values = downsample_data(ts, values)
-            ax.plot(ts, values, label=path)
+            ax.plot(ts, values, label=path, linewidth=2)
         ax.set_ylabel('Disk Usage (%)')
         ax.set_title('Disk Usage Over Time')
         ax.legend()
@@ -147,7 +150,7 @@ def generate_graph(metric, limit=None, hours=None):
             ts = timestamps[:len(values)]
             if should_downsample:
                 ts, values = downsample_data(ts, values)
-            ax.plot(ts, values, label=label)
+            ax.plot(ts, values, label=label, linewidth=2)
         ax.set_ylabel('Speed (MB/s)')
         ax.set_title('Network Speed Over Time')
         ax.legend()
@@ -161,7 +164,7 @@ def generate_graph(metric, limit=None, hours=None):
             ts = timestamps[:len(values)]
             if should_downsample:
                 ts, values = downsample_data(ts, values)
-            ax.plot(ts, values, label=label)
+            ax.plot(ts, values, label=label, linewidth=2)
         ax.set_ylabel('Operations per interval')
         ax.set_title('Disk I/O Operations Over Time')
         ax.set_ylim(bottom=0)
@@ -189,14 +192,26 @@ def generate_graph(metric, limit=None, hours=None):
     plt.xticks(rotation=0)
     plt.tight_layout()
     
+    
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
     plt.close()
     buf.seek(0)
     return buf.read()
+    
+    except Exception as e:
+        print(f"ERROR generating graph for {metric}: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        return None
 
 class Handler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        # Override to add more detail
+        sys.stderr.write(f"{self.address_string()} - {format%args}\n")
+    
     def do_GET(self):
+        print(f"DEBUG: Received request for {self.path}", file=sys.stderr)
         if self.path == '/':
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
@@ -213,6 +228,7 @@ class Handler(BaseHTTPRequestHandler):
             parts = self.path.split('/')
             view = parts[1]
             metric = parts[2] if len(parts) > 2 else None
+            print(f"DEBUG: view={view}, metric={metric}, valid={metric in ['cpu', 'temp', 'memory', 'disk', 'network', 'diskio']}", file=sys.stderr)
             
             if metric in ['cpu', 'temp', 'memory', 'disk', 'network', 'diskio']:
                 if view == 'all':
@@ -220,12 +236,15 @@ class Handler(BaseHTTPRequestHandler):
                 else:
                     img = generate_graph(metric, hours=1)
                 
+                print(f"DEBUG: Generated image: {len(img) if img else 0} bytes", file=sys.stderr)
+                
                 if img:
                     self.send_response(200)
                     self.send_header('Content-type', 'image/png')
                     self.end_headers()
                     self.wfile.write(img)
                 else:
+                    print(f"DEBUG: No image generated, sending 404", file=sys.stderr)
                     self.send_response(404)
                     self.end_headers()
             else:
