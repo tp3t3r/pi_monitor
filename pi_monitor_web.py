@@ -32,6 +32,8 @@ RESOURCE_DIR = config.get('RESOURCE_DIR', os.getenv('RESOURCE_DIR', '/usr/share/
 
 def read_logs(limit=None, hours=None):
     data = []
+    
+    # Read from disk
     try:
         with open(LOG_FILE) as f:
             for line in f:
@@ -39,12 +41,16 @@ def read_logs(limit=None, hours=None):
     except:
         pass
     
+    # Read from memory buffer
+    try:
+        with open('/dev/shm/pi_monitor_buffer.json', 'r') as f:
+            data.extend(json.load(f))
+    except:
+        pass
+    
     if hours:
-        # Get last 60 records (1 hour with 1-minute interval)
-        return data[-60:] if len(data) >= 60 else data
-    elif not limit:
-        # For "all" view, show all available records
-        return data
+        cutoff = datetime.now() - timedelta(hours=hours)
+        data = [d for d in data if datetime.fromisoformat(d['timestamp']) >= cutoff]
     
     if limit:
         data = data[-limit:]

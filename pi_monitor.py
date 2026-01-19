@@ -42,6 +42,7 @@ def get_cpu_temp():
         return round(int(f.read()) / 1000, 1)
 
 prev_net_stats = {}
+memory_buffer = []
 
 def get_net_stats():
     global prev_net_stats
@@ -129,6 +130,14 @@ def cleanup_old_data():
         for entry in data:
             f.write(json.dumps(entry) + '\n')
 
+def flush_buffer():
+    global memory_buffer
+    if memory_buffer:
+        with open(LOG_FILE, 'a') as f:
+            for entry in memory_buffer:
+                f.write(json.dumps(entry) + '\n')
+        memory_buffer = []
+
 print(f"Starting monitoring (interval: {INTERVAL}s, retention: {RETENTION_DAYS} days)")
 
 buffer = []
@@ -160,6 +169,10 @@ while True:
     
     buffer.append(entry)
     
+    # Write buffer to shared memory for web service
+    with open('/dev/shm/pi_monitor_buffer.json', 'w') as f:
+        json.dump(buffer, f)
+    
     # Write to disk every hour
     if (datetime.now() - last_write).total_seconds() >= 3600:
         with open(LOG_FILE, 'a') as f:
@@ -169,7 +182,6 @@ while True:
         last_write = datetime.now()
         
         # Cleanup old data after writing
-        if datetime.now().minute == 0:
-            cleanup_old_data()
+        cleanup_old_data()
     
     time.sleep(INTERVAL)
