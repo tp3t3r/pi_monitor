@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pi Monitor</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <h1>Pi Monitor</h1>
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('hour')">Last Hour</button>
+        <button class="tab" onclick="showTab('all')">All Records</button>
+    </div>
+    <div style="margin: 10px 20px;">
+        <a href="#cpu">CPU</a> | 
+        <a href="#temp">Temperature</a> | 
+        <a href="#memory">Memory</a> | 
+        <a href="#disk">Disk</a> | 
+        <a href="#network">Network</a> | 
+        <a href="#diskio">Disk I/O</a>
+    </div>
+    <div id="all" class="content">
+        <div id="cpu"><img src="/all/cpu" width="100%"></div>
+        <div id="temp"><img src="/all/temp" width="100%"></div>
+        <div id="memory"><img src="/all/memory" width="100%"></div>
+        <div id="disk"><img src="/all/disk" width="100%"></div>
+        <div id="network"><img src="/all/network" width="100%"></div>
+        <div id="diskio"><img src="/all/diskio" width="100%"></div>
+    </div>
+    <div id="hour" class="content active">
+        <div id="cpu"><img src="/hour/cpu" width="100%"></div>
+        <div id="temp"><img src="/hour/temp" width="100%"></div>
+        <div id="memory"><img src="/hour/memory" width="100%"></div>
+        <div id="disk"><img src="/hour/disk" width="100%"></div>
+        <div id="network"><img src="/hour/network" width="100%"></div>
+        <div id="diskio"><img src="/hour/diskio" width="100%"></div>
+    </div>
+    <script>
+    function showTab(tab) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+        event.target.classList.add('active');
+        document.getElementById(tab).classList.add('active');
+    }
+    </script>
+</body>
+</html>

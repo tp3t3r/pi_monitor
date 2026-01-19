@@ -1,0 +1,41 @@
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin: 20px;
+}
+
+.tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    background: #ddd;
+    border: none;
+    border-radius: 5px;
+}
+
+.tab.active {
+    background: #007bff;
+    color: white;
+}
+
+.content {
+    display: none;
+    padding: 20px;
+}
+
+.content.active {
+    display: block;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+h1 {
+    margin: 20px;
+}
+
+img {
+    margin-bottom: 20px;
+}

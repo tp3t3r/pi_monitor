@@ -1,0 +1,13 @@
+[Unit]
+Description=Raspberry Pi Monitor Web Service
+After=network.target
+
+[Service]
+Type=simple
+User=peter
+ExecStart=/usr/bin/python3 /usr/bin/pi_monitor_web.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
