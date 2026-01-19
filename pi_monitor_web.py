@@ -80,7 +80,7 @@ def generate_graph(metric, limit=None, hours=None):
     def plot_with_gaps(ax, ts, vals, gaps, **kwargs):
         """Plot data with dotted lines across gaps"""
         if not gaps:
-            ax.plot(ts, vals, **kwargs, linewidth=2)
+            ax.plot(ts, vals, linewidth=2, **kwargs)
             return
         
         # Split into segments
@@ -94,11 +94,12 @@ def generate_graph(metric, limit=None, hours=None):
             segments.append((start, len(ts)))
         
         # Plot segments
+        label = kwargs.pop('label', None)
         for i, (s, e) in enumerate(segments):
             if i == 0:
-                ax.plot(ts[s:e], vals[s:e], **kwargs, linewidth=2)
+                ax.plot(ts[s:e], vals[s:e], linewidth=2, label=label, **kwargs)
             else:
-                ax.plot(ts[s:e], vals[s:e], **kwargs, linewidth=2, label='_nolegend_')
+                ax.plot(ts[s:e], vals[s:e], linewidth=2, **kwargs)
             
             # Add dotted line across gap
             if i < len(segments) - 1:
