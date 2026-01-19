@@ -232,8 +232,8 @@ def generate_graph(metric, limit=None, hours=None):
     buf = io.BytesIO()
     plt.savefig(buf, format='png')
     plt.close()
-    buf.seek(0)
-    return buf.read()
+        buf.seek(0)
+        return buf.read()
     
     except Exception as e:
         print(f"ERROR generating graph for {metric}: {e}", file=sys.stderr)
