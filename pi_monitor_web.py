@@ -126,8 +126,8 @@ def generate_graph(metric, limit=None, hours=None):
     
         timestamps = [datetime.fromisoformat(d['timestamp']) for d in data]
         
-        # Detect gaps (more than 2x the expected interval)
-    
+        fig, ax = plt.subplots(figsize=(12, 6))
+        
         # Add alternating day backgrounds only for "all" view
         if timestamps and not hours:
             start_date = timestamps[0].date()
