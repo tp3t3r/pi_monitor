@@ -106,8 +106,8 @@ def get_disk_io():
             device = parts[2]
             if device in DISK_IO_DEVICES:
                 current[device] = {
-                    'read': int(parts[5]) * 512,
-                    'write': int(parts[9]) * 512
+                    'read_count': int(parts[3]),
+                    'write_count': int(parts[7])
                 }
     
     if prev_disk_io:
@@ -115,12 +115,12 @@ def get_disk_io():
             if device in prev_disk_io:
                 prev = prev_disk_io[device]
                 io_stats[device] = {
-                    'read_speed': (curr['read'] - prev['read']) / INTERVAL,
-                    'write_speed': (curr['write'] - prev['write']) / INTERVAL
+                    'read_count': curr['read_count'] - prev['read_count'],
+                    'write_count': curr['write_count'] - prev['write_count']
                 }
     
     prev_disk_io = current
-    return io_stats if io_stats else {device: {'read_speed': 0, 'write_speed': 0} for device in current}
+    return io_stats if io_stats else {device: {'read_count': 0, 'write_count': 0} for device in current}
 
 def cleanup_old_data():
     if not os.path.exists(LOG_FILE):

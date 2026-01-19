@@ -155,15 +155,15 @@ def generate_graph(metric, limit=None, hours=None):
         io_data = {}
         for d in data:
             for device, stats in d.get('disk_io', {}).items():
-                io_data.setdefault(f"{device}_read", []).append(stats.get('read_speed', 0) / 1024 / 1024)
-                io_data.setdefault(f"{device}_write", []).append(stats.get('write_speed', 0) / 1024 / 1024)
+                io_data.setdefault(f"{device}_read", []).append(stats.get('read_count', 0))
+                io_data.setdefault(f"{device}_write", []).append(stats.get('write_count', 0))
         for label, values in io_data.items():
             ts = timestamps[:len(values)]
             if should_downsample:
                 ts, values = downsample_data(ts, values)
             ax.plot(ts, values, label=label)
-        ax.set_ylabel('Speed (MB/s)')
-        ax.set_title('Disk I/O Speed Over Time')
+        ax.set_ylabel('Operations per interval')
+        ax.set_title('Disk I/O Operations Over Time')
         ax.legend()
     
     # Set x-axis formatting
