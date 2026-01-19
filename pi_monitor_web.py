@@ -77,8 +77,16 @@ def downsample_data(timestamps, values, max_points=200):
     return downsampled_ts, downsampled_vals
 
 def generate_graph(metric, limit=None, hours=None):
-    def plot_with_gaps(ax, ts, vals, gaps, **kwargs):
+    def plot_with_gaps(ax, ts, vals, **kwargs):
         """Plot data with dotted lines across gaps"""
+        # Detect gaps in the actual data being plotted
+        expected_interval = 120  # seconds (allow some variance)
+        gaps = set()
+        for i in range(1, len(ts)):
+            delta = (ts[i] - ts[i-1]).total_seconds()
+            if delta > expected_interval * 2:
+                gaps.add(i)
+        
         if not gaps:
             ax.plot(ts, vals, linewidth=2, **kwargs)
             return
@@ -95,16 +103,20 @@ def generate_graph(metric, limit=None, hours=None):
         
         # Plot segments
         label = kwargs.pop('label', None)
+        color = kwargs.pop('color', None)
         for i, (s, e) in enumerate(segments):
-            if i == 0:
-                ax.plot(ts[s:e], vals[s:e], linewidth=2, label=label, **kwargs)
-            else:
-                ax.plot(ts[s:e], vals[s:e], linewidth=2, **kwargs)
+            plot_kwargs = kwargs.copy()
+            if color:
+                plot_kwargs['color'] = color
+            if i == 0 and label:
+                plot_kwargs['label'] = label
+            ax.plot(ts[s:e], vals[s:e], linewidth=2, **plot_kwargs)
             
             # Add dotted line across gap
-            if i < len(segments) - 1:
+            if i < len(segments) - 1 and e < len(ts):
+                gap_color = color if color else (ax.lines[-1].get_color() if ax.lines else None)
                 ax.plot([ts[e-1], ts[e]], [vals[e-1], vals[e]], 
-                       linestyle=':', linewidth=1, color=ax.lines[-1].get_color(), label='_nolegend_')
+                       linestyle=':', linewidth=2, color=gap_color)
     
     try:
         data = read_logs(limit=limit, hours=hours)
@@ -115,14 +127,6 @@ def generate_graph(metric, limit=None, hours=None):
         timestamps = [datetime.fromisoformat(d['timestamp']) for d in data]
         
         # Detect gaps (more than 2x the expected interval)
-        expected_interval = 60  # seconds
-        gaps = set()
-        for i in range(1, len(timestamps)):
-            delta = (timestamps[i] - timestamps[i-1]).total_seconds()
-            if delta > expected_interval * 2:
-                gaps.add(i)
-    
-        fig, ax = plt.subplots(figsize=(12, 6))
     
         # Add alternating day backgrounds only for "all" view
         if timestamps and not hours:
@@ -145,14 +149,14 @@ def generate_graph(metric, limit=None, hours=None):
             values = [d['cpu_usage'] for d in data]
             if should_downsample:
                 timestamps, values = downsample_data(timestamps, values)
-            plot_with_gaps(ax, timestamps, values, gaps, label='CPU Usage %')
+            plot_with_gaps(ax, timestamps, values, label='CPU Usage %')
             ax.set_ylabel('CPU Usage (%)')
             ax.set_title('CPU Usage Over Time')
         elif metric == 'temp':
             values = [d['cpu_temp'] for d in data]
             if should_downsample:
                 timestamps, values = downsample_data(timestamps, values)
-            plot_with_gaps(ax, timestamps, values, gaps, label='CPU Temp °C', color='red')
+            plot_with_gaps(ax, timestamps, values, label='CPU Temp °C', color='red')
             ax.set_ylabel('Temperature (°C)')
             ax.set_title('CPU Temperature Over Time')
             ax.set_ylim(30, 70)
