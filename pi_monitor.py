@@ -32,12 +32,28 @@ DISK_PATHS = config.get('DISK_PATHS', os.getenv('DISK_PATHS', '/mnt/cam1,/mnt/ca
 DISK_IO_DEVICES = config.get('DISK_IO_DEVICES', os.getenv('DISK_IO_DEVICES', 'sda,mmcblk0')).split(',')
 NETWORK_INTERFACES = config.get('NETWORK_INTERFACES', os.getenv('NETWORK_INTERFACES', '')).split(',') if config.get('NETWORK_INTERFACES', os.getenv('NETWORK_INTERFACES', '')) else []
 
+prev_cpu_idle = 0
+prev_cpu_total = 0
+
 def get_cpu_usage():
+    global prev_cpu_idle, prev_cpu_total
     with open('/proc/stat') as f:
         fields = f.readline().split()[1:]
     idle = int(fields[3])
     total = sum(int(x) for x in fields)
-    return round(100 - (idle * 100 / total), 1)
+    
+    if prev_cpu_total == 0:
+        prev_cpu_idle, prev_cpu_total = idle, total
+        return 0.0
+    
+    idle_delta = idle - prev_cpu_idle
+    total_delta = total - prev_cpu_total
+    prev_cpu_idle, prev_cpu_total = idle, total
+    
+    if total_delta == 0:
+        return 0.0
+    
+    return round(100 * (1 - idle_delta / total_delta), 1)
 
 def get_cpu_temp():
     with open('/sys/class/thermal/thermal_zone0/temp') as f:
