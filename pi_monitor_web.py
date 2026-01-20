@@ -122,6 +122,11 @@ class MetricGraph(ABC):
     def plot(self, ax, data, timestamps, should_downsample):
         pass
     
+    def validate_limits(self, data_max):
+        """Adjust upper limit if data exceeds configured maximum"""
+        if data_max > self.limits[1]:
+            self.limits[1] = data_max * 1.1  # Add 10% headroom
+    
     def set_limits(self, ax):
         ax.set_ylim(*self.limits)
 
@@ -136,6 +141,7 @@ class CPUGraph(MetricGraph):
         values = [d['cpu_usage'] for d in data]
         if should_downsample:
             timestamps, values = downsample_data(timestamps, values)
+        self.validate_limits(max(values) if values else 0)
         plot_with_gaps(ax, timestamps, values, label='CPU Usage %')
 
 
@@ -149,6 +155,7 @@ class TempGraph(MetricGraph):
         values = [d['cpu_temp'] for d in data]
         if should_downsample:
             timestamps, values = downsample_data(timestamps, values)
+        self.validate_limits(max(values) if values else 0)
         plot_with_gaps(ax, timestamps, values, label='CPU Temp °C', color='red')
 
 
@@ -162,6 +169,7 @@ class MemoryGraph(MetricGraph):
         values = [d.get('memory_usage', 0) for d in data]
         if should_downsample:
             timestamps, values = downsample_data(timestamps, values)
+        self.validate_limits(max(values) if values else 0)
         plot_with_gaps(ax, timestamps, values, label='Memory Usage %', color='green')
 
 
@@ -177,6 +185,10 @@ class DiskGraph(MetricGraph):
             for path, usage in d['disk_usage'].items():
                 if usage is not None:
                     disk_data.setdefault(path, []).append(usage)
+        
+        all_values = [v for values in disk_data.values() for v in values]
+        self.validate_limits(max(all_values) if all_values else 0)
+        
         for path, values in disk_data.items():
             ts = timestamps[:len(values)]
             if should_downsample:
@@ -197,6 +209,10 @@ class NetworkGraph(MetricGraph):
             for iface, stats in d['network'].items():
                 net_data.setdefault(f"{iface}_rx", []).append(stats.get('rx_speed', 0) / 1024 / 1024)
                 net_data.setdefault(f"{iface}_tx", []).append(stats.get('tx_speed', 0) / 1024 / 1024)
+        
+        all_values = [v for values in net_data.values() for v in values]
+        self.validate_limits(max(all_values) if all_values else 0)
+        
         for label, values in net_data.items():
             ts = timestamps[:len(values)]
             if should_downsample:
@@ -217,6 +233,10 @@ class DiskIOGraph(MetricGraph):
             for device, stats in d.get('disk_io', {}).items():
                 io_data.setdefault(f"{device}_read", []).append(stats.get('read_count', 0))
                 io_data.setdefault(f"{device}_write", []).append(stats.get('write_count', 0))
+        
+        all_values = [v for values in io_data.values() for v in values]
+        self.validate_limits(max(all_values) if all_values else 0)
+        
         for label, values in io_data.items():
             ts = timestamps[:len(values)]
             if should_downsample:
