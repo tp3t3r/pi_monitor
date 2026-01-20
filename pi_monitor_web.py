@@ -68,7 +68,8 @@ def downsample_data(timestamps, values, max_points=200):
 
 def plot_with_gaps(ax, ts, vals, **kwargs):
     if len(ts) < 2:
-        ax.plot(ts, vals, linewidth=1.5, **kwargs)
+        line = ax.plot(ts, vals, linewidth=1.5, **kwargs)[0]
+        ax.fill_between(ts, vals, alpha=0.2, color=line.get_color())
         return
         
     intervals = [(ts[i] - ts[i-1]).total_seconds() for i in range(1, len(ts))]
@@ -83,7 +84,8 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
             gaps.add(i)
     
     if not gaps:
-        ax.plot(ts, vals, linewidth=1.5, **kwargs)
+        line = ax.plot(ts, vals, linewidth=1.5, **kwargs)[0]
+        ax.fill_between(ts, vals, alpha=0.2, color=line.get_color())
         return
     
     segments = []
@@ -101,10 +103,12 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
     s, e = segments[0]
     line = ax.plot(ts[s:e], vals[s:e], linewidth=1.5, label=label, color=color, **kwargs)[0]
     plot_color = line.get_color()
+    ax.fill_between(ts[s:e], vals[s:e], alpha=0.2, color=plot_color)
     
     for i in range(1, len(segments)):
         s, e = segments[i]
         ax.plot(ts[s:e], vals[s:e], linewidth=1.5, color=plot_color, **kwargs)
+        ax.fill_between(ts[s:e], vals[s:e], alpha=0.2, color=plot_color)
         
         prev_e = segments[i-1][1]
         ax.plot([ts[prev_e-1], ts[s]], [vals[prev_e-1], vals[s]], 
