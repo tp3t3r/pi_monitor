@@ -167,7 +167,7 @@ def generate_graph(metric, limit=None, hours=None):
             values = [d.get('memory_usage', 0) for d in data]
             if should_downsample:
                 timestamps, values = downsample_data(timestamps, values)
-            ax.plot(timestamps, values, label='Memory Usage %', color='green', linewidth=2)
+            plot_with_gaps(ax, timestamps, values, label='Memory Usage %', color='green')
             ax.set_ylabel('Memory Usage (%)')
             ax.set_title('Memory Usage Over Time')
         elif metric == 'disk':
@@ -180,7 +180,7 @@ def generate_graph(metric, limit=None, hours=None):
                 ts = timestamps[:len(values)]
                 if should_downsample:
                     ts, values = downsample_data(ts, values)
-                ax.plot(ts, values, label=path, linewidth=2)
+                plot_with_gaps(ax, ts, values, label=path)
             ax.set_ylabel('Disk Usage (%)')
             ax.set_title('Disk Usage Over Time')
             ax.legend(loc='upper right')
@@ -194,7 +194,7 @@ def generate_graph(metric, limit=None, hours=None):
                 ts = timestamps[:len(values)]
                 if should_downsample:
                     ts, values = downsample_data(ts, values)
-                ax.plot(ts, values, label=label, linewidth=2)
+                plot_with_gaps(ax, ts, values, label=label)
             ax.set_ylabel('Speed (MB/s)')
             ax.set_title('Network Speed Over Time')
             ax.legend(loc='upper right')
@@ -208,7 +208,7 @@ def generate_graph(metric, limit=None, hours=None):
                 ts = timestamps[:len(values)]
                 if should_downsample:
                     ts, values = downsample_data(ts, values)
-                ax.plot(ts, values, label=label, linewidth=2)
+                plot_with_gaps(ax, ts, values, label=label)
             ax.set_ylabel('Operations per minute (#)')
             ax.set_title('Disk I/O Operations Over Time')
             ax.set_ylim(bottom=0)
