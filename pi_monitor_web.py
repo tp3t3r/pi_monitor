@@ -12,24 +12,26 @@ import io
 
 # Load config
 def load_config():
-    config = {}
     try:
-        with open('/etc/pi_monitor.conf') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    key, val = line.split('=', 1)
-                    config[key] = val
+        with open('/etc/pi_monitor.json') as f:
+            return json.load(f)
     except:
-        pass
-    return config
+        return {}
 
 config = load_config()
 
-PORT = int(config.get('PORT', os.getenv('PORT', '9000')))
-LOG_FILE = config.get('LOG_FILE', os.getenv('LOG_FILE', '/var/log/pi_monitor.json'))
-MAX_RECORDS = int(config.get('MAX_RECORDS', os.getenv('MAX_RECORDS', '50')))
-RESOURCE_DIR = config.get('RESOURCE_DIR', os.getenv('RESOURCE_DIR', '/usr/share/pi_monitor'))
+PORT = config.get('web', {}).get('port', 9000)
+LOG_FILE = config.get('monitoring', {}).get('log_file', '/var/log/pi_monitor.json')
+RESOURCE_DIR = config.get('web', {}).get('resource_dir', '/usr/share/pi_monitor')
+PAGE_TITLE = config.get('web', {}).get('title', 'RPi monitoring')
+
+# Y-axis limits for graphs
+YLIM_CPU = config.get('metrics', {}).get('cpu', {}).get('graph_limits', [0, 100])
+YLIM_TEMP = config.get('metrics', {}).get('temp', {}).get('graph_limits', [30, 70])
+YLIM_MEMORY = config.get('metrics', {}).get('memory', {}).get('graph_limits', [0, 100])
+YLIM_DISK = config.get('metrics', {}).get('disk', {}).get('graph_limits', [0, 100])
+YLIM_NETWORK = config.get('metrics', {}).get('network', {}).get('graph_limits', [0, 500])
+YLIM_DISKIO = config.get('metrics', {}).get('diskio', {}).get('graph_limits', [0, 2000])
 
 def read_logs(limit=None, hours=None):
     data = []
@@ -164,7 +166,7 @@ def generate_graph(metric, limit=None, hours=None):
             plot_with_gaps(ax, timestamps, values, label='CPU Usage %')
             ax.set_ylabel('CPU Usage (%)')
             ax.set_title('CPU Usage Over Time')
-            ax.set_ylim(0, 100)
+            ax.set_ylim(*YLIM_CPU)
         elif metric == 'temp':
             values = [d['cpu_temp'] for d in data]
             if should_downsample:
@@ -172,7 +174,7 @@ def generate_graph(metric, limit=None, hours=None):
             plot_with_gaps(ax, timestamps, values, label='CPU Temp °C', color='red')
             ax.set_ylabel('Temperature (°C)')
             ax.set_title('CPU Temperature Over Time')
-            ax.set_ylim(30, 70)
+            ax.set_ylim(*YLIM_TEMP)
         elif metric == 'memory':
             values = [d.get('memory_usage', 0) for d in data]
             if should_downsample:
@@ -180,7 +182,7 @@ def generate_graph(metric, limit=None, hours=None):
             plot_with_gaps(ax, timestamps, values, label='Memory Usage %', color='green')
             ax.set_ylabel('Memory Usage (%)')
             ax.set_title('Memory Usage Over Time')
-            ax.set_ylim(0, 100)
+            ax.set_ylim(*YLIM_MEMORY)
         elif metric == 'disk':
             disk_data = {}
             for d in data:
@@ -194,7 +196,7 @@ def generate_graph(metric, limit=None, hours=None):
                 plot_with_gaps(ax, ts, values, label=path)
             ax.set_ylabel('Disk Usage (%)')
             ax.set_title('Disk Usage Over Time')
-            ax.set_ylim(0, 100)
+            ax.set_ylim(*YLIM_DISK)
             ax.legend(loc='upper right')
         elif metric == 'network':
             net_data = {}
@@ -209,7 +211,7 @@ def generate_graph(metric, limit=None, hours=None):
                 plot_with_gaps(ax, ts, values, label=label)
             ax.set_ylabel('Speed (MB/s)')
             ax.set_title('Network Speed Over Time')
-            ax.set_ylim(0, 500)
+            ax.set_ylim(*YLIM_NETWORK)
             ax.legend(loc='upper right')
         elif metric == 'diskio':
             io_data = {}
@@ -224,7 +226,7 @@ def generate_graph(metric, limit=None, hours=None):
                 plot_with_gaps(ax, ts, values, label=label)
             ax.set_ylabel('Operations per minute (#)')
             ax.set_title('Disk I/O Operations Over Time')
-            ax.set_ylim(0, 2000)
+            ax.set_ylim(*YLIM_DISKIO)
             ax.legend(loc='upper right')
         
         # Set x-axis formatting
@@ -292,6 +294,12 @@ class Handler(BaseHTTPRequestHandler):
             minutes = (uptime_seconds % 3600) // 60
             uptime_str = f"{days}d {hours}h {minutes}m"
             self.wfile.write(uptime_str.encode())
+        elif self.path == '/config':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            config_data = {'title': PAGE_TITLE}
+            self.wfile.write(json.dumps(config_data).encode())
         elif self.path.startswith('/all/') or self.path.startswith('/hour/'):
             parts = self.path.split('/')
             view = parts[1]

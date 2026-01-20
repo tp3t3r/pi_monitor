@@ -10,27 +10,22 @@ from datetime import datetime, timedelta
 
 # Load config
 def load_config():
-    config = {}
     try:
-        with open('/etc/pi_monitor.conf') as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith('#'):
-                    key, val = line.split('=', 1)
-                    config[key] = val
+        with open('/etc/pi_monitor.json') as f:
+            return json.load(f)
     except:
-        pass
-    return config
+        return {}
 
 config = load_config()
 
 # Configuration
-INTERVAL = int(config.get('INTERVAL', os.getenv('INTERVAL', '60')))
-LOG_FILE = config.get('LOG_FILE', os.getenv('LOG_FILE', 'pi_monitor.json'))
-RETENTION_DAYS = int(config.get('RETENTION_DAYS', os.getenv('RETENTION_DAYS', '7')))
-DISK_PATHS = config.get('DISK_PATHS', os.getenv('DISK_PATHS', '/mnt/cam1,/mnt/cam2,/opt')).split(',')
-DISK_IO_DEVICES = config.get('DISK_IO_DEVICES', os.getenv('DISK_IO_DEVICES', 'sda,mmcblk0')).split(',')
-NETWORK_INTERFACES = config.get('NETWORK_INTERFACES', os.getenv('NETWORK_INTERFACES', '')).split(',') if config.get('NETWORK_INTERFACES', os.getenv('NETWORK_INTERFACES', '')) else []
+INTERVAL = config.get('monitoring', {}).get('interval', 60)
+LOG_FILE = config.get('monitoring', {}).get('log_file', '/var/log/pi_monitor.json')
+RETENTION_DAYS = config.get('monitoring', {}).get('retention_days', 7)
+ENABLE_PROFILING = config.get('monitoring', {}).get('enable_profiling', False)
+DISK_PATHS = config.get('metrics', {}).get('disk', {}).get('paths', ['/mnt/cam1', '/mnt/cam2', '/opt'])
+DISK_IO_DEVICES = config.get('metrics', {}).get('diskio', {}).get('devices', ['sda', 'mmcblk0'])
+NETWORK_INTERFACES = config.get('metrics', {}).get('network', {}).get('interfaces', [])
 
 prev_cpu_idle = 0
 prev_cpu_total = 0
@@ -158,7 +153,6 @@ def flush_buffer():
 
 print(f"Starting monitoring (interval: {INTERVAL}s, retention: {RETENTION_DAYS} days)")
 
-ENABLE_PROFILING = os.getenv('ENABLE_PROFILING', 'false').lower() == 'true'
 profiler = cProfile.Profile() if ENABLE_PROFILING else None
 
 buffer = []
