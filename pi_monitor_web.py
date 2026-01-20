@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 
 import os
-import sys
 import json
+import sys
 from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from abc import ABC, abstractmethod
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -25,18 +26,9 @@ LOG_FILE = config.get('monitoring', {}).get('log_file', '/var/log/pi_monitor.jso
 RESOURCE_DIR = config.get('web', {}).get('resource_dir', '/usr/share/pi_monitor')
 PAGE_TITLE = config.get('web', {}).get('title', 'RPi monitoring')
 
-# Y-axis limits for graphs
-YLIM_CPU = config.get('metrics', {}).get('cpu', {}).get('graph_limits', [0, 100])
-YLIM_TEMP = config.get('metrics', {}).get('temp', {}).get('graph_limits', [30, 70])
-YLIM_MEMORY = config.get('metrics', {}).get('memory', {}).get('graph_limits', [0, 100])
-YLIM_DISK = config.get('metrics', {}).get('disk', {}).get('graph_limits', [0, 100])
-YLIM_NETWORK = config.get('metrics', {}).get('network', {}).get('graph_limits', [0, 500])
-YLIM_DISKIO = config.get('metrics', {}).get('diskio', {}).get('graph_limits', [0, 2000])
 
-def read_logs(limit=None, hours=None):
+def read_logs(hours=None):
     data = []
-    
-    # Read from disk
     try:
         with open(LOG_FILE) as f:
             for line in f:
@@ -44,7 +36,6 @@ def read_logs(limit=None, hours=None):
     except:
         pass
     
-    # Read from memory buffer
     try:
         with open('/dev/shm/pi_monitor_buffer.json', 'r') as f:
             data.extend(json.load(f))
@@ -52,17 +43,12 @@ def read_logs(limit=None, hours=None):
         pass
     
     if hours:
-        # For hourly view, show last 60 records (1 hour at 1-min intervals)
-        # This ensures we show data even if there's a gap/restart
         return data[-60:] if len(data) >= 60 else data
-    
-    if limit:
-        data = data[-limit:]
     
     return data
 
+
 def downsample_data(timestamps, values, max_points=200):
-    """Downsample data by averaging chunks while preserving trends"""
     if len(timestamps) <= max_points:
         return timestamps, values
     
@@ -79,70 +65,199 @@ def downsample_data(timestamps, values, max_points=200):
     
     return downsampled_ts, downsampled_vals
 
-def generate_graph(metric, limit=None, hours=None):
-    def plot_with_gaps(ax, ts, vals, **kwargs):
-        """Plot data with dotted lines across gaps"""
-        # Detect gaps in the actual data being plotted
-        # Use median interval to handle varying sample rates
-        if len(ts) < 2:
-            ax.plot(ts, vals, linewidth=1.5, **kwargs)
-            return
-            
-        intervals = [(ts[i] - ts[i-1]).total_seconds() for i in range(1, len(ts))]
-        intervals.sort()
-        median_interval = intervals[len(intervals) // 2]
-        gap_threshold = max(median_interval * 3, 300)  # At least 5 minutes
+
+def plot_with_gaps(ax, ts, vals, **kwargs):
+    if len(ts) < 2:
+        ax.plot(ts, vals, linewidth=1.5, **kwargs)
+        return
         
-        gaps = set()
-        for i in range(1, len(ts)):
-            delta = (ts[i] - ts[i-1]).total_seconds()
-            if delta > gap_threshold:
-                gaps.add(i)
-        
-        if not gaps:
-            ax.plot(ts, vals, linewidth=1.5, **kwargs)
-            return
-        
-        # Split into segments
-        segments = []
-        start = 0
-        for gap_idx in sorted(gaps):
-            if gap_idx > start:
-                segments.append((start, gap_idx))
-            start = gap_idx
-        if start < len(ts):
-            segments.append((start, len(ts)))
-        
-        # Plot segments with consistent color
-        label = kwargs.pop('label', None)
-        color = kwargs.pop('color', None)
-        
-        # Plot first segment to get color
-        s, e = segments[0]
-        line = ax.plot(ts[s:e], vals[s:e], linewidth=1.5, label=label, color=color, **kwargs)[0]
-        plot_color = line.get_color()
-        
-        # Plot remaining segments with same color
-        for i in range(1, len(segments)):
-            s, e = segments[i]
-            ax.plot(ts[s:e], vals[s:e], linewidth=1.5, color=plot_color, **kwargs)
-            
-            # Add dotted line across gap
-            prev_e = segments[i-1][1]
-            ax.plot([ts[prev_e-1], ts[s]], [vals[prev_e-1], vals[s]], 
-                   linestyle=':', linewidth=1.5, color=plot_color)
+    intervals = [(ts[i] - ts[i-1]).total_seconds() for i in range(1, len(ts))]
+    intervals.sort()
+    median_interval = intervals[len(intervals) // 2]
+    gap_threshold = max(median_interval * 3, 300)
     
+    gaps = set()
+    for i in range(1, len(ts)):
+        delta = (ts[i] - ts[i-1]).total_seconds()
+        if delta > gap_threshold:
+            gaps.add(i)
+    
+    if not gaps:
+        ax.plot(ts, vals, linewidth=1.5, **kwargs)
+        return
+    
+    segments = []
+    start = 0
+    for gap_idx in sorted(gaps):
+        if gap_idx > start:
+            segments.append((start, gap_idx))
+        start = gap_idx
+    if start < len(ts):
+        segments.append((start, len(ts)))
+    
+    label = kwargs.pop('label', None)
+    color = kwargs.pop('color', None)
+    
+    s, e = segments[0]
+    line = ax.plot(ts[s:e], vals[s:e], linewidth=1.5, label=label, color=color, **kwargs)[0]
+    plot_color = line.get_color()
+    
+    for i in range(1, len(segments)):
+        s, e = segments[i]
+        ax.plot(ts[s:e], vals[s:e], linewidth=1.5, color=plot_color, **kwargs)
+        
+        prev_e = segments[i-1][1]
+        ax.plot([ts[prev_e-1], ts[s]], [vals[prev_e-1], vals[s]], 
+               linestyle=':', linewidth=1.5, color=plot_color)
+
+
+class MetricGraph(ABC):
+    def __init__(self, config):
+        self.config = config
+        self.limits = config.get('graph_limits', [0, 100])
+    
+    @abstractmethod
+    def plot(self, ax, data, timestamps, should_downsample):
+        pass
+    
+    @abstractmethod
+    def get_ylabel(self):
+        pass
+    
+    @abstractmethod
+    def get_title(self):
+        pass
+    
+    def set_limits(self, ax):
+        ax.set_ylim(*self.limits)
+
+
+class CPUGraph(MetricGraph):
+    def plot(self, ax, data, timestamps, should_downsample):
+        values = [d['cpu_usage'] for d in data]
+        if should_downsample:
+            timestamps, values = downsample_data(timestamps, values)
+        plot_with_gaps(ax, timestamps, values, label='CPU Usage %')
+    
+    def get_ylabel(self):
+        return 'CPU Usage (%)'
+    
+    def get_title(self):
+        return 'CPU Usage Over Time'
+
+
+class TempGraph(MetricGraph):
+    def plot(self, ax, data, timestamps, should_downsample):
+        values = [d['cpu_temp'] for d in data]
+        if should_downsample:
+            timestamps, values = downsample_data(timestamps, values)
+        plot_with_gaps(ax, timestamps, values, label='CPU Temp °C', color='red')
+    
+    def get_ylabel(self):
+        return 'Temperature (°C)'
+    
+    def get_title(self):
+        return 'CPU Temperature Over Time'
+
+
+class MemoryGraph(MetricGraph):
+    def plot(self, ax, data, timestamps, should_downsample):
+        values = [d.get('memory_usage', 0) for d in data]
+        if should_downsample:
+            timestamps, values = downsample_data(timestamps, values)
+        plot_with_gaps(ax, timestamps, values, label='Memory Usage %', color='green')
+    
+    def get_ylabel(self):
+        return 'Memory Usage (%)'
+    
+    def get_title(self):
+        return 'Memory Usage Over Time'
+
+
+class DiskGraph(MetricGraph):
+    def plot(self, ax, data, timestamps, should_downsample):
+        disk_data = {}
+        for d in data:
+            for path, usage in d['disk_usage'].items():
+                if usage is not None:
+                    disk_data.setdefault(path, []).append(usage)
+        for path, values in disk_data.items():
+            ts = timestamps[:len(values)]
+            if should_downsample:
+                ts, values = downsample_data(ts, values)
+            plot_with_gaps(ax, ts, values, label=path)
+        ax.legend(loc='upper right')
+    
+    def get_ylabel(self):
+        return 'Disk Usage (%)'
+    
+    def get_title(self):
+        return 'Disk Usage Over Time'
+
+
+class NetworkGraph(MetricGraph):
+    def plot(self, ax, data, timestamps, should_downsample):
+        net_data = {}
+        for d in data:
+            for iface, stats in d['network'].items():
+                net_data.setdefault(f"{iface}_rx", []).append(stats.get('rx_speed', 0) / 1024 / 1024)
+                net_data.setdefault(f"{iface}_tx", []).append(stats.get('tx_speed', 0) / 1024 / 1024)
+        for label, values in net_data.items():
+            ts = timestamps[:len(values)]
+            if should_downsample:
+                ts, values = downsample_data(ts, values)
+            plot_with_gaps(ax, ts, values, label=label)
+        ax.legend(loc='upper right')
+    
+    def get_ylabel(self):
+        return 'Speed (MB/s)'
+    
+    def get_title(self):
+        return 'Network Speed Over Time'
+
+
+class DiskIOGraph(MetricGraph):
+    def plot(self, ax, data, timestamps, should_downsample):
+        io_data = {}
+        for d in data:
+            for device, stats in d.get('disk_io', {}).items():
+                io_data.setdefault(f"{device}_read", []).append(stats.get('read_count', 0))
+                io_data.setdefault(f"{device}_write", []).append(stats.get('write_count', 0))
+        for label, values in io_data.items():
+            ts = timestamps[:len(values)]
+            if should_downsample:
+                ts, values = downsample_data(ts, values)
+            plot_with_gaps(ax, ts, values, label=label)
+        ax.legend(loc='upper right')
+    
+    def get_ylabel(self):
+        return 'Operations per minute (#)'
+    
+    def get_title(self):
+        return 'Disk I/O Operations Over Time'
+
+
+# Initialize graphs
+graphs = {
+    'cpu': CPUGraph(config.get('metrics', {}).get('cpu', {})),
+    'temp': TempGraph(config.get('metrics', {}).get('temp', {})),
+    'memory': MemoryGraph(config.get('metrics', {}).get('memory', {})),
+    'disk': DiskGraph(config.get('metrics', {}).get('disk', {})),
+    'network': NetworkGraph(config.get('metrics', {}).get('network', {})),
+    'diskio': DiskIOGraph(config.get('metrics', {}).get('diskio', {}))
+}
+
+
+def generate_graph(metric, hours=None):
     try:
-        data = read_logs(limit=limit, hours=hours)
+        data = read_logs(hours=hours)
         if not data:
-            print(f"DEBUG: No data for metric={metric}, limit={limit}, hours={hours}", file=sys.stderr)
             return None
     
         timestamps = [datetime.fromisoformat(d['timestamp']) for d in data]
         
         fig, ax = plt.subplots(figsize=(12, 6))
         
-        # Add alternating day backgrounds only for "all" view
         if timestamps and not hours:
             start_date = timestamps[0].date()
             end_date = timestamps[-1].date()
@@ -156,101 +271,33 @@ def generate_graph(metric, limit=None, hours=None):
                 color_toggle = not color_toggle
                 current_date = current_date + timedelta(days=1)
         
-        # Downsample for "all" view
-        should_downsample = not hours and not limit
+        should_downsample = not hours
         
-        if metric == 'cpu':
-            values = [d['cpu_usage'] for d in data]
-            if should_downsample:
-                timestamps, values = downsample_data(timestamps, values)
-            plot_with_gaps(ax, timestamps, values, label='CPU Usage %')
-            ax.set_ylabel('CPU Usage (%)')
-            ax.set_title('CPU Usage Over Time')
-            ax.set_ylim(*YLIM_CPU)
-        elif metric == 'temp':
-            values = [d['cpu_temp'] for d in data]
-            if should_downsample:
-                timestamps, values = downsample_data(timestamps, values)
-            plot_with_gaps(ax, timestamps, values, label='CPU Temp °C', color='red')
-            ax.set_ylabel('Temperature (°C)')
-            ax.set_title('CPU Temperature Over Time')
-            ax.set_ylim(*YLIM_TEMP)
-        elif metric == 'memory':
-            values = [d.get('memory_usage', 0) for d in data]
-            if should_downsample:
-                timestamps, values = downsample_data(timestamps, values)
-            plot_with_gaps(ax, timestamps, values, label='Memory Usage %', color='green')
-            ax.set_ylabel('Memory Usage (%)')
-            ax.set_title('Memory Usage Over Time')
-            ax.set_ylim(*YLIM_MEMORY)
-        elif metric == 'disk':
-            disk_data = {}
-            for d in data:
-                for path, usage in d['disk_usage'].items():
-                    if usage is not None:
-                        disk_data.setdefault(path, []).append(usage)
-            for path, values in disk_data.items():
-                ts = timestamps[:len(values)]
-                if should_downsample:
-                    ts, values = downsample_data(ts, values)
-                plot_with_gaps(ax, ts, values, label=path)
-            ax.set_ylabel('Disk Usage (%)')
-            ax.set_title('Disk Usage Over Time')
-            ax.set_ylim(*YLIM_DISK)
-            ax.legend(loc='upper right')
-        elif metric == 'network':
-            net_data = {}
-            for d in data:
-                for iface, stats in d['network'].items():
-                    net_data.setdefault(f"{iface}_rx", []).append(stats.get('rx_speed', 0) / 1024 / 1024)
-                    net_data.setdefault(f"{iface}_tx", []).append(stats.get('tx_speed', 0) / 1024 / 1024)
-            for label, values in net_data.items():
-                ts = timestamps[:len(values)]
-                if should_downsample:
-                    ts, values = downsample_data(ts, values)
-                plot_with_gaps(ax, ts, values, label=label)
-            ax.set_ylabel('Speed (MB/s)')
-            ax.set_title('Network Speed Over Time')
-            ax.set_ylim(*YLIM_NETWORK)
-            ax.legend(loc='upper right')
-        elif metric == 'diskio':
-            io_data = {}
-            for d in data:
-                for device, stats in d.get('disk_io', {}).items():
-                    io_data.setdefault(f"{device}_read", []).append(stats.get('read_count', 0))
-                    io_data.setdefault(f"{device}_write", []).append(stats.get('write_count', 0))
-            for label, values in io_data.items():
-                ts = timestamps[:len(values)]
-                if should_downsample:
-                    ts, values = downsample_data(ts, values)
-                plot_with_gaps(ax, ts, values, label=label)
-            ax.set_ylabel('Operations per minute (#)')
-            ax.set_title('Disk I/O Operations Over Time')
-            ax.set_ylim(*YLIM_DISKIO)
-            ax.legend(loc='upper right')
+        graph = graphs.get(metric)
+        if not graph:
+            return None
         
-        # Set x-axis formatting
+        graph.plot(ax, data, timestamps, should_downsample)
+        ax.set_ylabel(graph.get_ylabel())
+        ax.set_title(graph.get_title())
+        graph.set_limits(ax)
+        
         from matplotlib.dates import HourLocator, MinuteLocator, DateFormatter
         from matplotlib.ticker import MaxNLocator
         
         if hours:
-            # For hourly view: show only 6 labels (every 10 minutes for 60 records)
             ax.xaxis.set_major_locator(MaxNLocator(nbins=6))
             ax.xaxis.set_major_formatter(DateFormatter('%H:%M'))
-            # Add minor ticks for every minute
             ax.xaxis.set_minor_locator(MinuteLocator(interval=1))
         else:
-            # For all records: show labels every 3 hours
             ax.xaxis.set_major_locator(HourLocator(interval=3))
             ax.xaxis.set_major_formatter(DateFormatter('%m-%d\n%H:%M'))
         
-        # Start graph at the leftmost data point
         if timestamps:
             ax.set_xlim(left=timestamps[0])
         
         plt.xticks(rotation=0)
         plt.tight_layout()
-        
         
         buf = io.BytesIO()
         plt.savefig(buf, format='png')
@@ -264,13 +311,12 @@ def generate_graph(metric, limit=None, hours=None):
         traceback.print_exc()
         return None
 
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        # Override to add more detail
-        sys.stderr.write(f"{self.address_string()} - {format%args}\n")
+        pass
     
     def do_GET(self):
-        print(f"DEBUG: Received request for {self.path}", file=sys.stderr)
         if self.path == '/':
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
@@ -304,15 +350,9 @@ class Handler(BaseHTTPRequestHandler):
             parts = self.path.split('/')
             view = parts[1]
             metric = parts[2] if len(parts) > 2 else None
-            print(f"DEBUG: view={view}, metric={metric}, valid={metric in ['cpu', 'temp', 'memory', 'disk', 'network', 'diskio']}", file=sys.stderr)
             
-            if metric in ['cpu', 'temp', 'memory', 'disk', 'network', 'diskio']:
-                if view == 'all':
-                    img = generate_graph(metric)
-                else:
-                    img = generate_graph(metric, hours=1)
-                
-                print(f"DEBUG: Generated image: {len(img) if img else 0} bytes", file=sys.stderr)
+            if metric in graphs:
+                img = generate_graph(metric, hours=1 if view == 'hour' else None)
                 
                 if img:
                     self.send_response(200)
@@ -320,7 +360,6 @@ class Handler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(img)
                 else:
-                    print(f"DEBUG: No image generated, sending 404", file=sys.stderr)
                     self.send_response(404)
                     self.end_headers()
             else:

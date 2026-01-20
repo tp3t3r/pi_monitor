@@ -7,6 +7,7 @@ import signal
 import cProfile
 import pstats
 from datetime import datetime, timedelta
+from abc import ABC, abstractmethod
 
 # Load config
 def load_config():
@@ -23,115 +24,157 @@ INTERVAL = config.get('monitoring', {}).get('interval', 60)
 LOG_FILE = config.get('monitoring', {}).get('log_file', '/var/log/pi_monitor.json')
 RETENTION_DAYS = config.get('monitoring', {}).get('retention_days', 7)
 ENABLE_PROFILING = config.get('monitoring', {}).get('enable_profiling', False)
-DISK_PATHS = config.get('metrics', {}).get('disk', {}).get('paths', ['/mnt/cam1', '/mnt/cam2', '/opt'])
-DISK_IO_DEVICES = config.get('metrics', {}).get('diskio', {}).get('devices', ['sda', 'mmcblk0'])
-NETWORK_INTERFACES = config.get('metrics', {}).get('network', {}).get('interfaces', [])
 
-prev_cpu_idle = 0
-prev_cpu_total = 0
 
-def get_cpu_usage():
-    global prev_cpu_idle, prev_cpu_total
-    with open('/proc/stat') as f:
-        fields = f.readline().split()[1:]
-    idle = int(fields[3])
-    total = sum(int(x) for x in fields)
+class Metric(ABC):
+    """Base class for all metrics"""
     
-    if prev_cpu_total == 0:
-        prev_cpu_idle, prev_cpu_total = idle, total
-        return 0.0
+    def __init__(self, config):
+        self.config = config
+        self.enabled = config.get('enabled', True)
     
-    idle_delta = idle - prev_cpu_idle
-    total_delta = total - prev_cpu_total
-    prev_cpu_idle, prev_cpu_total = idle, total
-    
-    if total_delta == 0:
-        return 0.0
-    
-    return round(100 * (1 - idle_delta / total_delta), 1)
+    @abstractmethod
+    def collect(self):
+        """Collect metric data and return value"""
+        pass
 
-def get_cpu_temp():
-    with open('/sys/class/thermal/thermal_zone0/temp') as f:
-        return round(int(f.read()) / 1000, 1)
 
-prev_net_stats = {}
-memory_buffer = []
-
-def get_net_stats():
-    global prev_net_stats
-    stats = {}
-    current = {}
+class CPUMetric(Metric):
+    def __init__(self, config):
+        super().__init__(config)
+        self.prev_idle = 0
+        self.prev_total = 0
     
-    with open('/proc/net/dev') as f:
-        for line in f:
-            if ':' in line and 'lo:' not in line:
+    def collect(self):
+        with open('/proc/stat') as f:
+            fields = f.readline().split()[1:]
+        idle = int(fields[3])
+        total = sum(int(x) for x in fields)
+        
+        if self.prev_total == 0:
+            self.prev_idle, self.prev_total = idle, total
+            return 0.0
+        
+        idle_delta = idle - self.prev_idle
+        total_delta = total - self.prev_total
+        self.prev_idle, self.prev_total = idle, total
+        
+        if total_delta == 0:
+            return 0.0
+        
+        return round(100 * (1 - idle_delta / total_delta), 1)
+
+
+class TempMetric(Metric):
+    def collect(self):
+        with open('/sys/class/thermal/thermal_zone0/temp') as f:
+            return round(int(f.read()) / 1000, 1)
+
+
+class MemoryMetric(Metric):
+    def collect(self):
+        with open('/proc/meminfo') as f:
+            lines = f.readlines()
+        mem = {}
+        for line in lines:
+            if line.startswith('MemTotal:'):
+                mem['total'] = int(line.split()[1])
+            elif line.startswith('MemAvailable:'):
+                mem['available'] = int(line.split()[1])
+        used = mem['total'] - mem['available']
+        return round(used * 100 / mem['total'], 1)
+
+
+class DiskMetric(Metric):
+    def __init__(self, config):
+        super().__init__(config)
+        self.paths = config.get('paths', [])
+    
+    def collect(self):
+        usage = {}
+        for path in self.paths:
+            try:
+                st = os.statvfs(path)
+                usage[path] = round(100 - (st.f_bavail * 100 / st.f_blocks), 1)
+            except:
+                usage[path] = None
+        return usage
+
+
+class NetworkMetric(Metric):
+    def __init__(self, config):
+        super().__init__(config)
+        self.interfaces = config.get('interfaces', [])
+        self.prev_stats = {}
+    
+    def collect(self):
+        stats = {}
+        current = {}
+        
+        with open('/proc/net/dev') as f:
+            for line in f:
+                if ':' in line and 'lo:' not in line:
+                    parts = line.split()
+                    iface = parts[0].rstrip(':')
+                    if not self.interfaces or iface in self.interfaces:
+                        current[iface] = {'rx': int(parts[1]), 'tx': int(parts[9])}
+        
+        if self.prev_stats:
+            for iface, curr in current.items():
+                if iface in self.prev_stats:
+                    prev = self.prev_stats[iface]
+                    stats[iface] = {
+                        'rx_speed': (curr['rx'] - prev['rx']) / INTERVAL,
+                        'tx_speed': (curr['tx'] - prev['tx']) / INTERVAL
+                    }
+        
+        self.prev_stats = current
+        return stats if stats else {iface: {'rx_speed': 0, 'tx_speed': 0} for iface in current}
+
+
+class DiskIOMetric(Metric):
+    def __init__(self, config):
+        super().__init__(config)
+        self.devices = config.get('devices', [])
+        self.prev_io = {}
+    
+    def collect(self):
+        io_stats = {}
+        current = {}
+        
+        with open('/proc/diskstats') as f:
+            for line in f:
                 parts = line.split()
-                iface = parts[0].rstrip(':')
-                if not NETWORK_INTERFACES or iface in NETWORK_INTERFACES:
-                    current[iface] = {'rx': int(parts[1]), 'tx': int(parts[9])}
-    
-    if prev_net_stats:
-        for iface, curr in current.items():
-            if iface in prev_net_stats:
-                prev = prev_net_stats[iface]
-                stats[iface] = {
-                    'rx_speed': (curr['rx'] - prev['rx']) / INTERVAL,
-                    'tx_speed': (curr['tx'] - prev['tx']) / INTERVAL
-                }
-    
-    prev_net_stats = current
-    return stats if stats else {iface: {'rx_speed': 0, 'tx_speed': 0} for iface in current}
+                device = parts[2]
+                if device in self.devices:
+                    current[device] = {
+                        'read_count': int(parts[3]),
+                        'write_count': int(parts[7])
+                    }
+        
+        if self.prev_io:
+            for device, curr in current.items():
+                if device in self.prev_io:
+                    prev = self.prev_io[device]
+                    io_stats[device] = {
+                        'read_count': curr['read_count'] - prev['read_count'],
+                        'write_count': curr['write_count'] - prev['write_count']
+                    }
+        
+        self.prev_io = current
+        return io_stats if io_stats else {device: {'read_count': 0, 'write_count': 0} for device in current}
 
-def get_disk_usage():
-    usage = {}
-    for path in DISK_PATHS:
-        try:
-            st = os.statvfs(path)
-            usage[path] = round(100 - (st.f_bavail * 100 / st.f_blocks), 1)
-        except:
-            usage[path] = None
-    return usage
 
-def get_memory_usage():
-    with open('/proc/meminfo') as f:
-        lines = f.readlines()
-    mem = {}
-    for line in lines:
-        if line.startswith('MemTotal:'):
-            mem['total'] = int(line.split()[1])
-        elif line.startswith('MemAvailable:'):
-            mem['available'] = int(line.split()[1])
-    used = mem['total'] - mem['available']
-    return round(used * 100 / mem['total'], 1)
+# Initialize metrics
+metrics = {
+    'cpu': CPUMetric(config.get('metrics', {}).get('cpu', {})),
+    'temp': TempMetric(config.get('metrics', {}).get('temp', {})),
+    'memory': MemoryMetric(config.get('metrics', {}).get('memory', {})),
+    'disk': DiskMetric(config.get('metrics', {}).get('disk', {})),
+    'network': NetworkMetric(config.get('metrics', {}).get('network', {})),
+    'disk_io': DiskIOMetric(config.get('metrics', {}).get('diskio', {}))
+}
 
-prev_disk_io = {}
-
-def get_disk_io():
-    global prev_disk_io
-    io_stats = {}
-    current = {}
-    
-    with open('/proc/diskstats') as f:
-        for line in f:
-            parts = line.split()
-            device = parts[2]
-            if device in DISK_IO_DEVICES:
-                current[device] = {
-                    'read_count': int(parts[3]),
-                    'write_count': int(parts[7])
-                }
-    
-    if prev_disk_io:
-        for device, curr in current.items():
-            if device in prev_disk_io:
-                prev = prev_disk_io[device]
-                io_stats[device] = {
-                    'read_count': curr['read_count'] - prev['read_count'],
-                    'write_count': curr['write_count'] - prev['write_count']
-                }
-    
-    prev_disk_io = current
-    return io_stats if io_stats else {device: {'read_count': 0, 'write_count': 0} for device in current}
 
 def cleanup_old_data():
     if not os.path.exists(LOG_FILE):
@@ -143,13 +186,6 @@ def cleanup_old_data():
         for entry in data:
             f.write(json.dumps(entry) + '\n')
 
-def flush_buffer():
-    global memory_buffer
-    if memory_buffer:
-        with open(LOG_FILE, 'a') as f:
-            for entry in memory_buffer:
-                f.write(json.dumps(entry) + '\n')
-        memory_buffer = []
 
 print(f"Starting monitoring (interval: {INTERVAL}s, retention: {RETENTION_DAYS} days)")
 
@@ -179,29 +215,15 @@ signal.signal(signal.SIGUSR1, flush_buffer)
 if ENABLE_PROFILING:
     profiler.enable()
 
-# Collect initial data immediately
-entry = {
-    'timestamp': datetime.now().isoformat(),
-    'cpu_usage': get_cpu_usage(),
-    'cpu_temp': get_cpu_temp(),
-    'memory_usage': get_memory_usage(),
-    'network': get_net_stats(),
-    'disk_usage': get_disk_usage(),
-    'disk_io': get_disk_io()
-}
-buffer.append(entry)
-with open('/dev/shm/pi_monitor_buffer.json', 'w') as f:
-    json.dump(buffer, f)
-
 while True:
     entry = {
         'timestamp': datetime.now().isoformat(),
-        'cpu_usage': get_cpu_usage(),
-        'cpu_temp': get_cpu_temp(),
-        'memory_usage': get_memory_usage(),
-        'network': get_net_stats(),
-        'disk_usage': get_disk_usage(),
-        'disk_io': get_disk_io()
+        'cpu_usage': metrics['cpu'].collect(),
+        'cpu_temp': metrics['temp'].collect(),
+        'memory_usage': metrics['memory'].collect(),
+        'network': metrics['network'].collect(),
+        'disk_usage': metrics['disk'].collect(),
+        'disk_io': metrics['disk_io'].collect()
     }
     
     buffer.append(entry)
@@ -217,10 +239,6 @@ while True:
                 f.write(json.dumps(e) + '\n')
         buffer = []
         last_write = datetime.now()
-        
-        # Update buffer file immediately after clearing
-        with open('/dev/shm/pi_monitor_buffer.json', 'w') as f:
-            json.dump(buffer, f)
         
         # Cleanup old data after writing
         cleanup_old_data()
