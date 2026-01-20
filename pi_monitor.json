@@ -13,30 +13,58 @@
   "metrics": {
     "cpu": {
       "enabled": true,
-      "graph_limits": [0, 100]
+      "graph_limits": [
+        0,
+        100
+      ]
     },
     "temp": {
       "enabled": true,
-      "graph_limits": [30, 70]
+      "graph_limits": [
+        30,
+        70
+      ]
     },
     "memory": {
       "enabled": true,
-      "graph_limits": [0, 100]
+      "graph_limits": [
+        0,
+        100
+      ]
     },
     "disk": {
       "enabled": true,
-      "paths": ["/mnt/cam1", "/mnt/cam2", "/opt"],
-      "graph_limits": [0, 100]
+      "paths": [
+        "/mnt/cam1",
+        "/mnt/cam2",
+        "/opt"
+      ],
+      "graph_limits": [
+        0,
+        100
+      ]
     },
     "network": {
       "enabled": true,
-      "interfaces": ["eth0", "wlan1"],
-      "graph_limits": [0, 500]
+      "interfaces": [
+        "eth0",
+        "wlan1"
+      ],
+      "graph_limits": [
+        0,
+        125
+      ]
     },
     "diskio": {
       "enabled": true,
-      "devices": ["sda", "mmcblk0"],
-      "graph_limits": [0, 2000]
+      "devices": [
+        "sda",
+        "mmcblk0"
+      ],
+      "graph_limits": [
+        0,
+        2000
+      ]
     }
   }
 }
