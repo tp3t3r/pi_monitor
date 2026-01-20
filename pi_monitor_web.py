@@ -50,8 +50,9 @@ def read_logs(limit=None, hours=None):
         pass
     
     if hours:
-        cutoff = datetime.now() - timedelta(hours=hours)
-        data = [d for d in data if datetime.fromisoformat(d['timestamp']) >= cutoff]
+        # For hourly view, show last 60 records (1 hour at 1-min intervals)
+        # This ensures we show data even if there's a gap/restart
+        return data[-60:] if len(data) >= 60 else data
     
     if limit:
         data = data[-limit:]
