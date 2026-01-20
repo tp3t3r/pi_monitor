@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=peter
+User=pi
 ExecStart=/usr/bin/python3 /usr/bin/pi_monitor_web.py
 Restart=always
 RestartSec=10
