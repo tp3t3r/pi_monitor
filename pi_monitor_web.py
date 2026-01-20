@@ -182,7 +182,7 @@ def generate_graph(metric, limit=None, hours=None):
                 ax.plot(ts, values, label=path, linewidth=2)
             ax.set_ylabel('Disk Usage (%)')
             ax.set_title('Disk Usage Over Time')
-            ax.legend()
+            ax.legend(loc='upper right')
         elif metric == 'network':
             net_data = {}
             for d in data:
@@ -196,7 +196,7 @@ def generate_graph(metric, limit=None, hours=None):
                 ax.plot(ts, values, label=label, linewidth=2)
             ax.set_ylabel('Speed (MB/s)')
             ax.set_title('Network Speed Over Time')
-            ax.legend()
+            ax.legend(loc='upper right')
         elif metric == 'diskio':
             io_data = {}
             for d in data:
@@ -211,7 +211,7 @@ def generate_graph(metric, limit=None, hours=None):
             ax.set_ylabel('Operations per interval')
             ax.set_title('Disk I/O Operations Over Time')
             ax.set_ylim(bottom=0)
-            ax.legend()
+            ax.legend(loc='upper right')
         
         # Set x-axis formatting
         from matplotlib.dates import HourLocator, MinuteLocator, DateFormatter
@@ -267,6 +267,17 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             with open(f'{RESOURCE_DIR}/style.css') as f:
                 self.wfile.write(f.read().encode())
+        elif self.path == '/uptime':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/plain')
+            self.end_headers()
+            with open('/proc/uptime') as f:
+                uptime_seconds = int(float(f.read().split()[0]))
+            days = uptime_seconds // 86400
+            hours = (uptime_seconds % 86400) // 3600
+            minutes = (uptime_seconds % 3600) // 60
+            uptime_str = f"{days}d {hours}h {minutes}m"
+            self.wfile.write(uptime_str.encode())
         elif self.path.startswith('/all/') or self.path.startswith('/hour/'):
             parts = self.path.split('/')
             view = parts[1]
