@@ -264,8 +264,8 @@ def generate_graph(metric, hours=None, mobile=False):
     
         timestamps = [datetime.fromisoformat(d['timestamp']) for d in data]
         
-        # Responsive sizing: mobile 1000x300, desktop 24x6
-        figsize = (10, 3) if mobile else (24, 6)
+        # Responsive sizing: mobile 1200x500, desktop 24x6
+        figsize = (12, 5) if mobile else (24, 6)
         fig, ax = plt.subplots(figsize=figsize)
         
         if timestamps and not hours:
