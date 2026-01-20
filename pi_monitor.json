@@ -52,7 +52,7 @@
       ],
       "graph_limits": [
         0,
-        125
+        60
       ]
     },
     "diskio": {
