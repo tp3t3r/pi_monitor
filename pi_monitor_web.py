@@ -115,17 +115,11 @@ class MetricGraph(ABC):
     def __init__(self, config):
         self.config = config
         self.limits = config.get('graph_limits', [0, 100])
+        self.ylabel = ''
+        self.title = ''
     
     @abstractmethod
     def plot(self, ax, data, timestamps, should_downsample):
-        pass
-    
-    @abstractmethod
-    def get_ylabel(self):
-        pass
-    
-    @abstractmethod
-    def get_title(self):
         pass
     
     def set_limits(self, ax):
@@ -133,48 +127,50 @@ class MetricGraph(ABC):
 
 
 class CPUGraph(MetricGraph):
+    def __init__(self, config):
+        super().__init__(config)
+        self.ylabel = 'CPU Usage (%)'
+        self.title = 'CPU Usage Over Time'
+    
     def plot(self, ax, data, timestamps, should_downsample):
         values = [d['cpu_usage'] for d in data]
         if should_downsample:
             timestamps, values = downsample_data(timestamps, values)
         plot_with_gaps(ax, timestamps, values, label='CPU Usage %')
-    
-    def get_ylabel(self):
-        return 'CPU Usage (%)'
-    
-    def get_title(self):
-        return 'CPU Usage Over Time'
 
 
 class TempGraph(MetricGraph):
+    def __init__(self, config):
+        super().__init__(config)
+        self.ylabel = 'Temperature (°C)'
+        self.title = 'CPU Temperature Over Time'
+    
     def plot(self, ax, data, timestamps, should_downsample):
         values = [d['cpu_temp'] for d in data]
         if should_downsample:
             timestamps, values = downsample_data(timestamps, values)
         plot_with_gaps(ax, timestamps, values, label='CPU Temp °C', color='red')
-    
-    def get_ylabel(self):
-        return 'Temperature (°C)'
-    
-    def get_title(self):
-        return 'CPU Temperature Over Time'
 
 
 class MemoryGraph(MetricGraph):
+    def __init__(self, config):
+        super().__init__(config)
+        self.ylabel = 'Memory Usage (%)'
+        self.title = 'Memory Usage Over Time'
+    
     def plot(self, ax, data, timestamps, should_downsample):
         values = [d.get('memory_usage', 0) for d in data]
         if should_downsample:
             timestamps, values = downsample_data(timestamps, values)
         plot_with_gaps(ax, timestamps, values, label='Memory Usage %', color='green')
-    
-    def get_ylabel(self):
-        return 'Memory Usage (%)'
-    
-    def get_title(self):
-        return 'Memory Usage Over Time'
 
 
 class DiskGraph(MetricGraph):
+    def __init__(self, config):
+        super().__init__(config)
+        self.ylabel = 'Disk Usage (%)'
+        self.title = 'Disk Usage Over Time'
+    
     def plot(self, ax, data, timestamps, should_downsample):
         disk_data = {}
         for d in data:
@@ -187,15 +183,14 @@ class DiskGraph(MetricGraph):
                 ts, values = downsample_data(ts, values)
             plot_with_gaps(ax, ts, values, label=path)
         ax.legend(loc='upper right')
-    
-    def get_ylabel(self):
-        return 'Disk Usage (%)'
-    
-    def get_title(self):
-        return 'Disk Usage Over Time'
 
 
 class NetworkGraph(MetricGraph):
+    def __init__(self, config):
+        super().__init__(config)
+        self.ylabel = 'Speed (MB/s)'
+        self.title = 'Network Speed Over Time'
+    
     def plot(self, ax, data, timestamps, should_downsample):
         net_data = {}
         for d in data:
@@ -208,15 +203,14 @@ class NetworkGraph(MetricGraph):
                 ts, values = downsample_data(ts, values)
             plot_with_gaps(ax, ts, values, label=label)
         ax.legend(loc='upper right')
-    
-    def get_ylabel(self):
-        return 'Speed (MB/s)'
-    
-    def get_title(self):
-        return 'Network Speed Over Time'
 
 
 class DiskIOGraph(MetricGraph):
+    def __init__(self, config):
+        super().__init__(config)
+        self.ylabel = 'Operations per minute (#)'
+        self.title = 'Disk I/O Operations Over Time'
+    
     def plot(self, ax, data, timestamps, should_downsample):
         io_data = {}
         for d in data:
@@ -229,12 +223,6 @@ class DiskIOGraph(MetricGraph):
                 ts, values = downsample_data(ts, values)
             plot_with_gaps(ax, ts, values, label=label)
         ax.legend(loc='upper right')
-    
-    def get_ylabel(self):
-        return 'Operations per minute (#)'
-    
-    def get_title(self):
-        return 'Disk I/O Operations Over Time'
 
 
 # Initialize graphs
@@ -278,8 +266,8 @@ def generate_graph(metric, hours=None):
             return None
         
         graph.plot(ax, data, timestamps, should_downsample)
-        ax.set_ylabel(graph.get_ylabel())
-        ax.set_title(graph.get_title())
+        ax.set_ylabel(graph.ylabel)
+        ax.set_title(graph.title)
         graph.set_limits(ax)
         
         from matplotlib.dates import HourLocator, MinuteLocator, DateFormatter
