@@ -307,8 +307,10 @@ def generate_graph(metric, hours=None, mobile=False):
             ax.xaxis.set_major_formatter(DateFormatter('%H:%M'))
             ax.xaxis.set_minor_locator(MinuteLocator(interval=1))
         else:
+            # Show tick every hour, label every 3rd hour
             ax.xaxis.set_major_locator(HourLocator(interval=3))
             ax.xaxis.set_major_formatter(DateFormatter('%m-%d\n%H:%M'))
+            ax.xaxis.set_minor_locator(HourLocator(interval=1))
         
         if timestamps:
             ax.set_xlim(left=timestamps[0])
