@@ -208,7 +208,7 @@ def generate_graph(metric, limit=None, hours=None):
                 if should_downsample:
                     ts, values = downsample_data(ts, values)
                 ax.plot(ts, values, label=label, linewidth=2)
-            ax.set_ylabel('Operations per interval')
+            ax.set_ylabel('Operations per minute (#)')
             ax.set_title('Disk I/O Operations Over Time')
             ax.set_ylim(bottom=0)
             ax.legend(loc='upper right')
