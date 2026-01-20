@@ -264,7 +264,7 @@ def generate_graph(metric, hours=None):
     
         timestamps = [datetime.fromisoformat(d['timestamp']) for d in data]
         
-        fig, ax = plt.subplots(figsize=(12, 6))
+        fig, ax = plt.subplots(figsize=(24, 12))
         
         if timestamps and not hours:
             start_date = timestamps[0].date()
