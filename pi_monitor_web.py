@@ -81,11 +81,20 @@ def generate_graph(metric, limit=None, hours=None):
     def plot_with_gaps(ax, ts, vals, **kwargs):
         """Plot data with dotted lines across gaps"""
         # Detect gaps in the actual data being plotted
-        expected_interval = 120  # seconds (allow some variance)
+        # Use median interval to handle varying sample rates
+        if len(ts) < 2:
+            ax.plot(ts, vals, linewidth=1.5, **kwargs)
+            return
+            
+        intervals = [(ts[i] - ts[i-1]).total_seconds() for i in range(1, len(ts))]
+        intervals.sort()
+        median_interval = intervals[len(intervals) // 2]
+        gap_threshold = max(median_interval * 3, 300)  # At least 5 minutes
+        
         gaps = set()
         for i in range(1, len(ts)):
             delta = (ts[i] - ts[i-1]).total_seconds()
-            if delta > expected_interval * 2:
+            if delta > gap_threshold:
                 gaps.add(i)
         
         if not gaps:
