@@ -256,7 +256,7 @@ graphs = {
 }
 
 
-def generate_graph(metric, hours=None):
+def generate_graph(metric, hours=None, mobile=False):
     try:
         data = read_logs(hours=hours)
         if not data:
@@ -264,7 +264,9 @@ def generate_graph(metric, hours=None):
     
         timestamps = [datetime.fromisoformat(d['timestamp']) for d in data]
         
-        fig, ax = plt.subplots(figsize=(24, 12))
+        # Responsive sizing: mobile 1000x300, desktop 24x6
+        figsize = (10, 3) if mobile else (24, 6)
+        fig, ax = plt.subplots(figsize=figsize)
         
         if timestamps and not hours:
             start_date = timestamps[0].date()
@@ -359,8 +361,12 @@ class Handler(BaseHTTPRequestHandler):
             view = parts[1]
             metric = parts[2] if len(parts) > 2 else None
             
+            # Detect mobile from User-Agent
+            user_agent = self.headers.get('User-Agent', '').lower()
+            mobile = any(x in user_agent for x in ['mobile', 'android', 'iphone', 'ipad'])
+            
             if metric in graphs:
-                img = generate_graph(metric, hours=1 if view == 'hour' else None)
+                img = generate_graph(metric, hours=1 if view == 'hour' else None, mobile=mobile)
                 
                 if img:
                     self.send_response(200)
