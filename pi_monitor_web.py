@@ -111,10 +111,10 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
         ax.fill_between(ts[s:e], vals[s:e], alpha=0.10, color=plot_color)
         
         prev_e = segments[i-1][1]
-        # Fill the gap area
+        # Fill the gap area with fainter color
         gap_ts = [ts[prev_e-1], ts[s]]
         gap_vals = [vals[prev_e-1], vals[s]]
-        ax.fill_between(gap_ts, gap_vals, alpha=0.10, color=plot_color)
+        ax.fill_between(gap_ts, gap_vals, alpha=0.05, color=plot_color)
         ax.plot(gap_ts, gap_vals, linestyle=':', linewidth=1.5, color=plot_color)
 
 
