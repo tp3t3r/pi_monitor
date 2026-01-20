@@ -164,6 +164,7 @@ def generate_graph(metric, limit=None, hours=None):
             plot_with_gaps(ax, timestamps, values, label='CPU Usage %')
             ax.set_ylabel('CPU Usage (%)')
             ax.set_title('CPU Usage Over Time')
+            ax.set_ylim(0, 100)
         elif metric == 'temp':
             values = [d['cpu_temp'] for d in data]
             if should_downsample:
@@ -179,6 +180,7 @@ def generate_graph(metric, limit=None, hours=None):
             plot_with_gaps(ax, timestamps, values, label='Memory Usage %', color='green')
             ax.set_ylabel('Memory Usage (%)')
             ax.set_title('Memory Usage Over Time')
+            ax.set_ylim(0, 100)
         elif metric == 'disk':
             disk_data = {}
             for d in data:
@@ -192,6 +194,7 @@ def generate_graph(metric, limit=None, hours=None):
                 plot_with_gaps(ax, ts, values, label=path)
             ax.set_ylabel('Disk Usage (%)')
             ax.set_title('Disk Usage Over Time')
+            ax.set_ylim(0, 100)
             ax.legend(loc='upper right')
         elif metric == 'network':
             net_data = {}
@@ -206,6 +209,7 @@ def generate_graph(metric, limit=None, hours=None):
                 plot_with_gaps(ax, ts, values, label=label)
             ax.set_ylabel('Speed (MB/s)')
             ax.set_title('Network Speed Over Time')
+            ax.set_ylim(0, 500)
             ax.legend(loc='upper right')
         elif metric == 'diskio':
             io_data = {}
@@ -220,7 +224,7 @@ def generate_graph(metric, limit=None, hours=None):
                 plot_with_gaps(ax, ts, values, label=label)
             ax.set_ylabel('Operations per minute (#)')
             ax.set_title('Disk I/O Operations Over Time')
-            ax.set_ylim(bottom=0)
+            ax.set_ylim(0, 2000)
             ax.legend(loc='upper right')
         
         # Set x-axis formatting
