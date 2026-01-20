@@ -112,7 +112,7 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
         
         prev_e = segments[i-1][1]
         ax.plot([ts[prev_e-1], ts[s]], [vals[prev_e-1], vals[s]], 
-               linestyle=':', linewidth=1.5, color=plot_color)
+               linestyle=':', linewidth=1.5, color=plot_color, alpha=0.05)
 
 
 class MetricGraph(ABC):
