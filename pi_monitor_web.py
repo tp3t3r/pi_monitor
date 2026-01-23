@@ -79,10 +79,7 @@ def create_gradient_cmap(color):
 def plot_with_gaps(ax, ts, vals, **kwargs):
     if len(ts) < 2:
         line = ax.plot(ts, vals, linewidth=1.5, **kwargs)[0]
-        y_min, y_max = ax.get_ylim()
-        cmap = create_gradient_cmap(line.get_color())
-        for i in range(len(ts)):
-            ax.fill_between([ts[i]], [vals[i]], color=cmap(vals[i]/y_max if y_max > 0 else 0), alpha=0.6)
+        ax.fill_between([ts[0]], [vals[0]], color=line.get_color(), alpha=0.3)
         return
         
     intervals = [(ts[i] - ts[i-1]).total_seconds() for i in range(1, len(ts))]
@@ -101,16 +98,7 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
     
     if not gaps:
         line = ax.plot(ts, vals, linewidth=1.5, label=label, color=color, **kwargs)[0]
-        plot_color = line.get_color()
-        y_min, y_max = ax.get_ylim()
-        cmap = create_gradient_cmap(plot_color)
-        
-        vals_array = np.array(vals)
-        norm_vals = vals_array / y_max if y_max > 0 else vals_array
-        colors = [cmap(v) for v in norm_vals]
-        
-        for i in range(len(ts)-1):
-            ax.fill_between(ts[i:i+2], vals[i:i+2], color=colors[i], alpha=0.6, linewidth=0)
+        ax.fill_between(ts, vals, color=line.get_color(), alpha=0.3, linewidth=0)
         return
     
     segments = []
@@ -125,173 +113,11 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
     s, e = segments[0]
     line = ax.plot(ts[s:e], vals[s:e], linewidth=1.5, label=label, color=color, **kwargs)[0]
     plot_color = line.get_color()
-    y_min, y_max = ax.get_ylim()
-    cmap = create_gradient_cmap(plot_color)
+    ax.fill_between(ts[s:e], vals[s:e], color=plot_color, alpha=0.3, linewidth=0)
     
-    for seg_idx, (s, e) in enumerate(segments):
-        if seg_idx > 0:
-            ax.plot(ts[s:e], vals[s:e], linewidth=1.5, color=plot_color, **kwargs)
-        
-        seg_vals = np.array(vals[s:e])
-        norm_vals = seg_vals / y_max if y_max > 0 else seg_vals
-        colors = [cmap(v) for v in norm_vals]
-        
-        for i in range(len(ts[s:e])-1):
-            ax.fill_between(ts[s+i:s+i+2], vals[s+i:s+i+2], color=colors[i], alpha=0.6, linewidth=0)
-        
-        if seg_idx < len(segments) - 1:
-            prev_e = e
-            next_s = segments[seg_idx + 1][0]
-            gap_ts = [ts[prev_e-1], ts[next_s]]
-            gap_vals = [vals[prev_e-1], vals[next_s]]
-            ax.plot(gap_ts, gap_vals, linestyle=':', linewidth=1.5, color=plot_color)
-            
-            gap_norm = [gap_vals[0]/y_max if y_max > 0 else 0, gap_vals[1]/y_max if y_max > 0 else 0]
-            gap_color = cmap(sum(gap_norm)/2)
-            ax.fill_between(gap_ts, gap_vals, color=gap_color, alpha=0.3, linewidth=0)
-
-
-class MetricGraph(ABC):
-    def __init__(self, config):
-        self.config = config
-        self.limits = config.get('graph_limits', [0, 100])
-        self.ylabel = ''
-        self.title = ''
-    
-    @abstractmethod
-    def plot(self, ax, data, timestamps, should_downsample):
-        pass
-    
-    def validate_limits(self, data_max):
-        if data_max > self.limits[1]:
-            self.limits[1] = data_max * 1.1
-    
-    def set_limits(self, ax):
-        ax.set_ylim(*self.limits)
-
-
-class CPUGraph(MetricGraph):
-    def __init__(self, config):
-        super().__init__(config)
-        self.ylabel = 'CPU Usage (%)'
-        self.title = 'CPU Usage Over Time'
-    
-    def plot(self, ax, data, timestamps, should_downsample):
-        values = [d['cpu_usage'] for d in data]
-        if should_downsample:
-            timestamps, values = downsample_data(timestamps, values)
-        self.validate_limits(max(values) if values else 0)
-        plot_with_gaps(ax, timestamps, values, label='CPU Usage %')
-
-
-class TempGraph(MetricGraph):
-    def __init__(self, config):
-        super().__init__(config)
-        self.ylabel = 'Temperature (°C)'
-        self.title = 'CPU Temperature Over Time'
-    
-    def plot(self, ax, data, timestamps, should_downsample):
-        values = [d['cpu_temp'] for d in data]
-        if should_downsample:
-            timestamps, values = downsample_data(timestamps, values)
-        self.validate_limits(max(values) if values else 0)
-        plot_with_gaps(ax, timestamps, values, label='CPU Temp °C', color='red')
-
-
-class MemoryGraph(MetricGraph):
-    def __init__(self, config):
-        super().__init__(config)
-        self.ylabel = 'Memory Usage (%)'
-        self.title = 'Memory Usage Over Time'
-    
-    def plot(self, ax, data, timestamps, should_downsample):
-        values = [d.get('memory_usage', 0) for d in data]
-        if should_downsample:
-            timestamps, values = downsample_data(timestamps, values)
-        self.validate_limits(max(values) if values else 0)
-        plot_with_gaps(ax, timestamps, values, label='Memory Usage %', color='green')
-
-
-class DiskGraph(MetricGraph):
-    def __init__(self, config):
-        super().__init__(config)
-        self.ylabel = 'Disk Usage (%)'
-        self.title = 'Disk Usage Over Time'
-    
-    def plot(self, ax, data, timestamps, should_downsample):
-        disk_data = {}
-        for d in data:
-            for path, usage in d['disk_usage'].items():
-                if usage is not None:
-                    disk_data.setdefault(path, []).append(usage)
-        
-        all_values = [v for values in disk_data.values() for v in values]
-        self.validate_limits(max(all_values) if all_values else 0)
-        
-        for path, values in disk_data.items():
-            ts = timestamps[:len(values)]
-            if should_downsample:
-                ts, values = downsample_data(ts, values)
-            plot_with_gaps(ax, ts, values, label=path)
-        ax.legend(loc='upper right')
-
-
-class NetworkGraph(MetricGraph):
-    def __init__(self, config):
-        super().__init__(config)
-        self.ylabel = 'Speed (MB/s)'
-        self.title = 'Network Speed Over Time'
-    
-    def plot(self, ax, data, timestamps, should_downsample):
-        net_data = {}
-        for d in data:
-            for iface, stats in d['network'].items():
-                net_data.setdefault(f"{iface}_rx", []).append(stats.get('rx_speed', 0) / 1024 / 1024)
-                net_data.setdefault(f"{iface}_tx", []).append(stats.get('tx_speed', 0) / 1024 / 1024)
-        
-        all_values = [v for values in net_data.values() for v in values]
-        self.validate_limits(max(all_values) if all_values else 0)
-        
-        for label, values in net_data.items():
-            ts = timestamps[:len(values)]
-            if should_downsample:
-                ts, values = downsample_data(ts, values)
-            plot_with_gaps(ax, ts, values, label=label)
-        ax.legend(loc='upper right')
-
-
-class DiskIOGraph(MetricGraph):
-    def __init__(self, config):
-        super().__init__(config)
-        self.ylabel = 'Operations per minute (#)'
-        self.title = 'Disk I/O Operations Over Time'
-    
-    def plot(self, ax, data, timestamps, should_downsample):
-        io_data = {}
-        for d in data:
-            for device, stats in d.get('disk_io', {}).items():
-                io_data.setdefault(f"{device}_read", []).append(stats.get('read_count', 0))
-                io_data.setdefault(f"{device}_write", []).append(stats.get('write_count', 0))
-        
-        all_values = [v for values in io_data.values() for v in values]
-        self.validate_limits(max(all_values) if all_values else 0)
-        
-        for label, values in io_data.items():
-            ts = timestamps[:len(values)]
-            if should_downsample:
-                ts, values = downsample_data(ts, values)
-            plot_with_gaps(ax, ts, values, label=label)
-        ax.legend(loc='upper right')
-
-
-graphs = {
-    'cpu': CPUGraph(config.get('metrics', {}).get('cpu', {})),
-    'temp': TempGraph(config.get('metrics', {}).get('temp', {})),
-    'memory': MemoryGraph(config.get('metrics', {}).get('memory', {})),
-    'disk': DiskGraph(config.get('metrics', {}).get('disk', {})),
-    'network': NetworkGraph(config.get('metrics', {}).get('network', {})),
-    'diskio': DiskIOGraph(config.get('metrics', {}).get('diskio', {}))
-}
+    for seg_idx, (s, e) in enumerate(segments[1:], 1):
+        ax.plot(ts[s:e], vals[s:e], linewidth=1.5, color=plot_color, **kwargs)
+        ax.fill_between(ts[s:e], vals[s:e], color=plot_color, alpha=0.3, linewidth=0)
 
 
 def generate_graph(metric, hours=None, mobile=False):
