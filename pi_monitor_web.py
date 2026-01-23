@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import numpy as np
 import io
 
@@ -129,6 +130,11 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
             gap_ts = [ts[prev_e-1], ts[next_s]]
             gap_vals = [vals[prev_e-1], vals[next_s]]
             ax.plot(gap_ts, gap_vals, linestyle=':', linewidth=1.5, color=plot_color)
+            # Fill gap with 30% saturation
+            rgb = mcolors.to_rgb(plot_color)
+            h, s, v = mcolors.rgb_to_hsv(rgb)
+            light_color = mcolors.hsv_to_rgb([h, s * 0.3, v])
+            ax.fill_between(gap_ts, gap_vals, color=light_color, alpha=0.3)
             
 
 
