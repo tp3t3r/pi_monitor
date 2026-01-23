@@ -4,6 +4,7 @@ import os
 import json
 import sys
 import subprocess
+import subprocess
 from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
@@ -34,21 +35,19 @@ MAX_POINTS = config.get("web", {}).get("max_points")
 
 def read_logs(hours=None):
     data = []
-    max_lines = 1000  # Only read last 1000 records for performance
+    max_lines = 1000
     
     try:
-        # Use tail for efficient reading of last N lines
-        result = subprocess.run(['tail', '-n', str(max_lines), LOG_FILE], 
+        result = subprocess.run(["tail", "-n", str(max_lines), LOG_FILE],
                               capture_output=True, text=True, check=True)
-        for line in result.stdout.strip().split('\n'):
-'):
+        for line in result.stdout.strip().splitlines():
             if line:
                 data.append(json.loads(line))
     except:
         pass
     
     try:
-        with open('/dev/shm/pi_monitor_buffer.json', 'r') as f:
+        with open("/dev/shm/pi_monitor_buffer.json", "r") as f:
             data.extend(json.load(f))
     except:
         pass
