@@ -40,7 +40,7 @@ def read_logs(hours=None):
         # Use tail for efficient reading of last N lines
         result = subprocess.run(['tail', '-n', str(max_lines), LOG_FILE], 
                               capture_output=True, text=True, check=True)
-        for line in result.stdout.strip().split('
+        for line in result.stdout.strip().split('\n'):
 '):
             if line:
                 data.append(json.loads(line))
