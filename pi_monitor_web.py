@@ -5,6 +5,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
+from socketserver import ThreadingMixIn
 from abc import ABC, abstractmethod
 import matplotlib
 matplotlib.use('Agg')
@@ -49,7 +50,7 @@ def read_logs(hours=None):
     return data
 
 
-def downsample_data(timestamps, values, max_points=200):
+def downsample_data(timestamps, values, max_points=100):
     if len(timestamps) <= max_points:
         return timestamps, values
     
@@ -426,6 +427,9 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send_response(404)
             self.end_headers()
+print(f"Starting web server on port {PORT}")
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    pass
 
 print(f"Starting web server on port {PORT}")
-HTTPServer(('0.0.0.0', PORT), Handler).serve_forever()
+ThreadedHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
