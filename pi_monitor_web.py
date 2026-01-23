@@ -93,16 +93,7 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
     
     if not gaps:
         line = ax.plot(ts, vals, linewidth=1.5, label=label, color=color, **kwargs)[0]
-        plot_color = line.get_color()
-        y_min, y_max = ax.get_ylim()
-        
-        
-        vals_array = np.array(vals)
-        norm_vals = vals_array / y_max if y_max > 0 else vals_array
-        
-        
-        for i in range(len(ts)-1):
-            ax.fill_between(ts[i:i+2], vals[i:i+2], color=plot_color, alpha=0.2, linewidth=0)
+        ax.fill_between(ts, vals, color=line.get_color(), alpha=0.2)
         return
     
     segments = []
@@ -124,12 +115,7 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
         if seg_idx > 0:
             ax.plot(ts[s:e], vals[s:e], linewidth=1.5, color=plot_color, **kwargs)
         
-        seg_vals = np.array(vals[s:e])
-        norm_vals = seg_vals / y_max if y_max > 0 else seg_vals
-        
-        
-        for i in range(len(ts[s:e])-1):
-            ax.fill_between(ts[s+i:s+i+2], vals[s+i:s+i+2], color=plot_color, alpha=0.2, linewidth=0)
+        ax.fill_between(ts[s:e], vals[s:e], color=plot_color, alpha=0.2)
         
         if seg_idx < len(segments) - 1:
             prev_e = e
