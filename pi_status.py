@@ -19,7 +19,7 @@ def load_config():
 
 config = load_config()
 
-LOG_FILE = config.get('LOG_FILE', os.getenv('LOG_FILE', '/opt/tmp/pi_monitor.json'))
+LOG_FILE = config.get('LOG_FILE', os.getenv('LOG_FILE', '/opt/tmp/collected_data.json'))
 
 try:
     with open(LOG_FILE) as f:

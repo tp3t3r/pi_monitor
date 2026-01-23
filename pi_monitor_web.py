@@ -25,7 +25,7 @@ def load_config():
 config = load_config()
 
 PORT = config.get('web', {}).get('port', 9000)
-LOG_FILE = config.get('monitoring', {}).get('log_file', '/opt/tmp/pi_monitor.json')
+LOG_FILE = config.get('monitoring', {}).get('log_file', '/opt/tmp/collected_data.json')
 RESOURCE_DIR = config.get('web', {}).get('resource_dir', '/usr/share/pi_monitor')
 PAGE_TITLE = config.get('web', {}).get('title', 'RPi monitoring')
 

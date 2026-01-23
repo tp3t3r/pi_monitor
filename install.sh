@@ -20,8 +20,8 @@ sudo mkdir -p /usr/share/pi_monitor
 sudo cp resources/* /usr/share/pi_monitor/
 
 # Create log file with proper permissions
-sudo touch /opt/tmp/pi_monitor.json
-sudo chown peter:peter /opt/tmp/pi_monitor.json
+sudo touch /opt/tmp/collected_data.json
+sudo chown peter:peter /opt/tmp/collected_data.json
 
 # Reload and restart services
 sudo systemctl daemon-reload
