@@ -3,6 +3,7 @@
 import os
 import json
 import sys
+import subprocess
 from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
@@ -33,9 +34,15 @@ MAX_POINTS = config.get("web", {}).get("max_points")
 
 def read_logs(hours=None):
     data = []
+    max_lines = 1000  # Only read last 1000 records for performance
+    
     try:
-        with open(LOG_FILE) as f:
-            for line in f:
+        # Use tail for efficient reading of last N lines
+        result = subprocess.run(['tail', '-n', str(max_lines), LOG_FILE], 
+                              capture_output=True, text=True, check=True)
+        for line in result.stdout.strip().split('
+'):
+            if line:
                 data.append(json.loads(line))
     except:
         pass
