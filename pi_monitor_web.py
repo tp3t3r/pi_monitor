@@ -352,11 +352,9 @@ def generate_graph(metric, hours=None, mobile=False):
         if hours:
             ax.xaxis.set_major_locator(MinuteLocator(byminute=[0,10,20,30,40,50]))
             ax.xaxis.set_major_formatter(DateFormatter('%H:%M'))
-            ax.xaxis.set_minor_locator(MinuteLocator(byminute=range(0,60,1)))
         else:
             ax.xaxis.set_major_locator(HourLocator(byhour=range(0,24,3)))
             ax.xaxis.set_major_formatter(DateFormatter('%m-%d\n%H:%M'))
-            ax.xaxis.set_minor_locator(HourLocator(byhour=range(0,24,1)))
         
         if timestamps:
             if hours:
