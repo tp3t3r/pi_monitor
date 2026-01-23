@@ -27,6 +27,8 @@ PORT = config.get('web', {}).get('port', 9000)
 LOG_FILE = config.get('monitoring', {}).get('log_file', '/opt/tmp/collected_data.json')
 RESOURCE_DIR = config.get('web', {}).get('resource_dir', '/usr/share/pi_monitor')
 PAGE_TITLE = config.get('web', {}).get('title', 'RPi monitoring')
+LISTEN_ADDR = config.get("web", {}).get("listen", "0.0.0.0")
+MAX_POINTS = config.get("web", {}).get("max_points", 100)
 
 
 def read_logs(hours=None):
@@ -50,7 +52,7 @@ def read_logs(hours=None):
     return data
 
 
-def downsample_data(timestamps, values, max_points=100):
+def downsample_data(timestamps, values, max_points=MAX_POINTS):
     if len(timestamps) <= max_points:
         return timestamps, values
     
@@ -432,4 +434,4 @@ class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
     pass
 
 print(f"Starting web server on port {PORT}")
-ThreadedHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+ThreadedHTTPServer((LISTEN_ADDR, PORT), Handler).serve_forever()
