@@ -146,9 +146,6 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
             gap_vals = [vals[prev_e-1], vals[next_s]]
             ax.plot(gap_ts, gap_vals, linestyle=':', linewidth=1.5, color=plot_color)
             
-            gap_norm = [gap_vals[0]/y_max if y_max > 0 else 0, gap_vals[1]/y_max if y_max > 0 else 0]
-            gap_color = cmap(sum(gap_norm)/2)
-            ax.fill_between(gap_ts, gap_vals, color=gap_color, alpha=0.3, linewidth=0)
 
 
 class MetricGraph(ABC):
