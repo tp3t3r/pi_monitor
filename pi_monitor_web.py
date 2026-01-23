@@ -362,6 +362,11 @@ def generate_graph(metric, hours=None, mobile=False):
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass
+    def handle_one_request(self):
+        try:
+            super().handle_one_request()
+        except (BrokenPipeError, ConnectionResetError):
+            pass
     
     def do_GET(self):
         if self.path == '/':
