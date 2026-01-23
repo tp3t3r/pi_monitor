@@ -35,7 +35,7 @@ MAX_POINTS = config.get("web", {}).get("max_points")
 
 def read_logs(hours=None):
     data = []
-    max_lines = 1000
+    max_lines = 100 if hours else 1000
     
     try:
         result = subprocess.run(["tail", "-n", str(max_lines), LOG_FILE],
