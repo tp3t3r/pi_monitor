@@ -411,6 +411,17 @@ class Handler(BaseHTTPRequestHandler):
             minutes = (uptime_seconds % 3600) // 60
             uptime_str = f"{days}d {hours}h {minutes}m"
             self.wfile.write(uptime_str.encode())
+        elif self.path == '/info':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            with open('/proc/uptime') as f:
+                uptime_seconds = int(float(f.read().split()[0]))
+            days = uptime_seconds // 86400
+            hours = (uptime_seconds % 86400) // 3600
+            minutes = (uptime_seconds % 3600) // 60
+            uptime_str = f"{days}d {hours}h {minutes}m"
+            self.wfile.write(json.dumps({'uptime': uptime_str}).encode())
         elif self.path == '/config':
             self.send_response(200)
             self.send_header('Content-type', 'application/json')

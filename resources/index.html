@@ -8,6 +8,7 @@
 </head>
 <body>
     <h1>RPi monitoring</h1>
+    <div id="info" style="margin: 10px 20px; font-size: 14px; color: #999;"></div>
     <div class="tabs">
         <button class="tab active" onclick="showTab('hour')">Last Hour</button>
         <button class="tab" onclick="showTab('all')">All Records</button>
@@ -43,6 +44,20 @@
         event.target.classList.add('active');
         document.getElementById(tab).classList.add('active');
     }
+    
+    function updateInfo() {
+        const start = Date.now();
+        fetch('/info')
+            .then(r => r.json())
+            .then(data => {
+                const duration = Date.now() - start;
+                document.getElementById('info').textContent = 
+                    'System uptime: ' + data.uptime + ' | Page generation: ' + duration + 'ms';
+            });
+    }
+    
+    updateInfo();
+    setInterval(updateInfo, 45000);
     </script>
 </body>
 </html>
