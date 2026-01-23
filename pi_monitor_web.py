@@ -77,47 +77,10 @@ def create_gradient_cmap(color):
 
 
 def plot_with_gaps(ax, ts, vals, **kwargs):
-    if len(ts) < 2:
-        line = ax.plot(ts, vals, linewidth=1.5, **kwargs)[0]
-        ax.fill_between([ts[0]], [vals[0]], color=line.get_color(), alpha=0.25)
-        return
-        
-    intervals = [(ts[i] - ts[i-1]).total_seconds() for i in range(1, len(ts))]
-    intervals.sort()
-    median_interval = intervals[len(intervals) // 2]
-    gap_threshold = max(median_interval * 3, 300)
-    
-    gaps = set()
-    for i in range(1, len(ts)):
-        delta = (ts[i] - ts[i-1]).total_seconds()
-        if delta > gap_threshold:
-            gaps.add(i)
-    
     label = kwargs.pop('label', None)
     color = kwargs.pop('color', None)
-    
-    if not gaps:
-        line = ax.plot(ts, vals, linewidth=1.5, label=label, color=color, **kwargs)[0]
-        ax.fill_between(ts, vals, color=line.get_color(), alpha=0.25, linewidth=0)
-        return
-    
-    segments = []
-    start = 0
-    for gap_idx in sorted(gaps):
-        if gap_idx > start:
-            segments.append((start, gap_idx))
-        start = gap_idx
-    if start < len(ts):
-        segments.append((start, len(ts)))
-    
-    s, e = segments[0]
-    line = ax.plot(ts[s:e], vals[s:e], linewidth=1.5, label=label, color=color, **kwargs)[0]
-    plot_color = line.get_color()
-    ax.fill_between(ts[s:e], vals[s:e], color=plot_color, alpha=0.25, linewidth=0)
-    
-    for seg_idx, (s, e) in enumerate(segments[1:], 1):
-        ax.plot(ts[s:e], vals[s:e], linewidth=1.5, color=plot_color, **kwargs)
-        ax.fill_between(ts[s:e], vals[s:e], color=plot_color, alpha=0.25, linewidth=0)
+    line = ax.plot(ts, vals, linewidth=1.5, label=label, color=color, **kwargs)[0]
+    ax.fill_between(ts, vals, color=line.get_color(), alpha=0.2)
 
 
 def generate_graph(metric, hours=None, mobile=False):
