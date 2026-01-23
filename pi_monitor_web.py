@@ -351,7 +351,7 @@ def generate_graph(metric, hours=None, mobile=False):
         plt.tight_layout()
         
         buf = io.BytesIO()
-        plt.savefig(buf, format='png')
+        plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
         plt.close()
         buf.seek(0)
         return buf.read()
