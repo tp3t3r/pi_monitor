@@ -9,6 +9,8 @@ from abc import ABC, abstractmethod
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.colors as mcolors
 import io
 
 # Load config
@@ -66,10 +68,18 @@ def downsample_data(timestamps, values, max_points=200):
     return downsampled_ts, downsampled_vals
 
 
+def create_gradient_fill(ax, color):
+    h, s, v = mcolors.rgb_to_hsv(mcolors.to_rgb(color))
+    s = min(s * 2, 1.0)
+    top_color = mcolors.hsv_to_rgb([h, s, v])
+    return LinearSegmentedColormap.from_list('gradient', ['white', top_color])
+
+
 def plot_with_gaps(ax, ts, vals, **kwargs):
     if len(ts) < 2:
         line = ax.plot(ts, vals, linewidth=1.5, **kwargs)[0]
-        ax.fill_between(ts, vals, alpha=0.10, color=line.get_color())
+        cmap = create_gradient_fill(ax, line.get_color())
+        ax.fill_between(ts, vals, alpha=0.6, cmap=cmap, vmin=min(vals), vmax=max(vals))
         return
         
     intervals = [(ts[i] - ts[i-1]).total_seconds() for i in range(1, len(ts))]
@@ -85,7 +95,8 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
     
     if not gaps:
         line = ax.plot(ts, vals, linewidth=1.5, **kwargs)[0]
-        ax.fill_between(ts, vals, alpha=0.10, color=line.get_color())
+        cmap = create_gradient_fill(ax, line.get_color())
+        ax.fill_between(ts, vals, alpha=0.6, cmap=cmap, vmin=min(vals), vmax=max(vals))
         return
     
     segments = []
@@ -103,18 +114,18 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
     s, e = segments[0]
     line = ax.plot(ts[s:e], vals[s:e], linewidth=1.5, label=label, color=color, **kwargs)[0]
     plot_color = line.get_color()
-    ax.fill_between(ts[s:e], vals[s:e], alpha=0.10, color=plot_color)
+    cmap = create_gradient_fill(ax, plot_color)
+    ax.fill_between(ts[s:e], vals[s:e], alpha=0.6, cmap=cmap, vmin=min(vals), vmax=max(vals))
     
     for i in range(1, len(segments)):
         s, e = segments[i]
         ax.plot(ts[s:e], vals[s:e], linewidth=1.5, color=plot_color, **kwargs)
-        ax.fill_between(ts[s:e], vals[s:e], alpha=0.10, color=plot_color)
+        ax.fill_between(ts[s:e], vals[s:e], alpha=0.6, cmap=cmap, vmin=min(vals), vmax=max(vals))
         
         prev_e = segments[i-1][1]
-        # Fill the gap area with fainter color
         gap_ts = [ts[prev_e-1], ts[s]]
         gap_vals = [vals[prev_e-1], vals[s]]
-        ax.fill_between(gap_ts, gap_vals, alpha=0.05, color=plot_color)
+        ax.fill_between(gap_ts, gap_vals, alpha=0.3, cmap=cmap, vmin=min(vals), vmax=max(vals))
         ax.plot(gap_ts, gap_vals, linestyle=':', linewidth=1.5, color=plot_color)
 
 
@@ -130,7 +141,7 @@ class MetricGraph(ABC):
         pass
     
     def validate_limits(self, data_max):
-        """Adjust upper limit if data exceeds configured maximum"""
+        Adjust upper limit if data exceeds configured maximum
         if data_max > self.limits[1]:
             self.limits[1] = data_max * 1.1  # Add 10% headroom
     
@@ -214,8 +225,8 @@ class NetworkGraph(MetricGraph):
         net_data = {}
         for d in data:
             for iface, stats in d['network'].items():
-                net_data.setdefault(f"{iface}_rx", []).append(stats.get('rx_speed', 0) / 1024 / 1024)
-                net_data.setdefault(f"{iface}_tx", []).append(stats.get('tx_speed', 0) / 1024 / 1024)
+                net_data.setdefault(f{iface}_rx, []).append(stats.get('rx_speed', 0) / 1024 / 1024)
+                net_data.setdefault(f{iface}_tx, []).append(stats.get('tx_speed', 0) / 1024 / 1024)
         
         all_values = [v for values in net_data.values() for v in values]
         self.validate_limits(max(all_values) if all_values else 0)
@@ -238,8 +249,8 @@ class DiskIOGraph(MetricGraph):
         io_data = {}
         for d in data:
             for device, stats in d.get('disk_io', {}).items():
-                io_data.setdefault(f"{device}_read", []).append(stats.get('read_count', 0))
-                io_data.setdefault(f"{device}_write", []).append(stats.get('write_count', 0))
+                io_data.setdefault(f{device}_read, []).append(stats.get('read_count', 0))
+                io_data.setdefault(f{device}_write, []).append(stats.get('write_count', 0))
         
         all_values = [v for values in io_data.values() for v in values]
         self.validate_limits(max(all_values) if all_values else 0)
