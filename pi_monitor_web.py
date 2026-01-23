@@ -9,8 +9,6 @@ from abc import ABC, abstractmethod
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
-import matplotlib.colors as mcolors
 import numpy as np
 import io
 
@@ -68,12 +66,6 @@ def downsample_data(timestamps, values, max_points=200):
     
     return downsampled_ts, downsampled_vals
 
-
-def create_gradient_cmap(color):
-    h, s, v = mcolors.rgb_to_hsv(mcolors.to_rgb(color))
-    s = min(s * 2, 1.0)
-    top_color = mcolors.hsv_to_rgb([h, s, v])
-    return LinearSegmentedColormap.from_list('grad', ['white', top_color])
 
 
 def plot_with_gaps(ax, ts, vals, **kwargs):
