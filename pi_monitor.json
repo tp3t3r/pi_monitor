@@ -2,69 +2,43 @@
   "web": {
     "title": "RPi monitoring",
     "port": 9000,
-    "resource_dir": "/usr/share/pi_monitor"
+    "resource_dir": "/usr/share/pi_monitor",
+    "listen": "0.0.0.0",
+    "max_points": 100
   },
   "monitoring": {
     "interval": 60,
-    "log_file": "/var/log/pi_monitor.json",
-    "retention_days": 7,
+    "log_file": "/opt/tmp/collected_data.json",
+    "retention_days": 3,
     "enable_profiling": false
   },
   "metrics": {
     "cpu": {
       "enabled": true,
-      "graph_limits": [
-        0,
-        100
-      ]
+      "graph_limits": [0, 100]
     },
     "temp": {
       "enabled": true,
-      "graph_limits": [
-        30,
-        70
-      ]
+      "graph_limits": [30, 70]
     },
     "memory": {
       "enabled": true,
-      "graph_limits": [
-        0,
-        100
-      ]
+      "graph_limits": [0, 100]
     },
     "disk": {
       "enabled": true,
-      "paths": [
-        "/mnt/cam1",
-        "/mnt/cam2",
-        "/opt"
-      ],
-      "graph_limits": [
-        0,
-        100
-      ]
+      "paths": ["/"],
+      "graph_limits": [0, 100]
     },
     "network": {
       "enabled": true,
-      "interfaces": [
-        "eth0",
-        "wlan1"
-      ],
-      "graph_limits": [
-        0,
-        60
-      ]
+      "interfaces": ["eth0"],
+      "graph_limits": [0, 60]
     },
     "diskio": {
       "enabled": true,
-      "devices": [
-        "sda",
-        "mmcblk0"
-      ],
-      "graph_limits": [
-        0,
-        2000
-      ]
+      "devices": ["sda"],
+      "graph_limits": [0, 2000]
     }
   }
 }

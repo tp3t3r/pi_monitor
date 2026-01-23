@@ -5,7 +5,6 @@ import json
 import sys
 from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from socketserver import ThreadingMixIn
 from abc import ABC, abstractmethod
 import matplotlib
 matplotlib.use('Agg')
@@ -438,8 +437,5 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.end_headers()
 print(f"Starting web server on port {PORT}")
-class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
-    pass
-
 print(f"Starting web server on port {PORT}")
-ThreadedHTTPServer((LISTEN_ADDR, PORT), Handler).serve_forever()
+HTTPServer((LISTEN_ADDR, PORT), Handler).serve_forever()
