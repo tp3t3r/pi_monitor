@@ -342,7 +342,13 @@ def generate_graph(metric, hours=None, mobile=False):
             ax.xaxis.set_minor_locator(HourLocator(byhour=range(0,24,1)))
         
         if timestamps:
-            ax.set_xlim(left=timestamps[0])
+            if hours:
+                # Round down to previous :00 minute
+                start_time = timestamps[0].replace(second=0, microsecond=0)
+                start_time = start_time.replace(minute=(start_time.minute // 10) * 10)
+                ax.set_xlim(left=start_time)
+            else:
+                ax.set_xlim(left=timestamps[0])
         
         plt.xticks(rotation=0)
         plt.tight_layout()
