@@ -346,7 +346,6 @@ def generate_graph(metric, hours=None, mobile=False):
                 ax.set_xlim(left=timestamps[0])
         
         plt.xticks(rotation=0)
-        plt.tight_layout()
         
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=100, bbox_inches='tight')
