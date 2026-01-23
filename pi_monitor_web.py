@@ -3,8 +3,6 @@
 import os
 import json
 import sys
-import subprocess
-import subprocess
 from datetime import datetime, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from socketserver import ThreadingMixIn
@@ -38,11 +36,11 @@ def read_logs(hours=None):
     max_lines = 100 if hours else 1000
     
     try:
-        result = subprocess.run(["tail", "-n", str(max_lines), LOG_FILE],
-                              capture_output=True, text=True, check=True)
-        for line in result.stdout.strip().splitlines():
-            if line:
-                data.append(json.loads(line))
+        with open(LOG_FILE, "r") as f:
+            all_lines = f.readlines()
+            for line in all_lines[-max_lines:]:
+                if line.strip():
+                    data.append(json.loads(line))
     except:
         pass
     
