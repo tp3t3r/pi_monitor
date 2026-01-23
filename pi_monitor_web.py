@@ -27,8 +27,8 @@ PORT = config.get('web', {}).get('port', 9000)
 LOG_FILE = config.get('monitoring', {}).get('log_file', '/opt/tmp/collected_data.json')
 RESOURCE_DIR = config.get('web', {}).get('resource_dir', '/usr/share/pi_monitor')
 PAGE_TITLE = config.get('web', {}).get('title', 'RPi monitoring')
-LISTEN_ADDR = config.get("web", {}).get("listen", "0.0.0.0")
-MAX_POINTS = config.get("web", {}).get("max_points", 100)
+LISTEN_ADDR = config.get("web", {}).get("listen")
+MAX_POINTS = config.get("web", {}).get("max_points")
 
 
 def read_logs(hours=None):
