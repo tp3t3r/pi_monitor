@@ -318,7 +318,6 @@ def generate_graph(metric, hours=None, mobile=False):
         
         graph.plot(ax, data, timestamps, should_downsample)
         ax.set_ylabel(graph.ylabel)
-        ax.set_title(graph.title)
         graph.set_limits(ax)
         
         legend = ax.get_legend()

@@ -51,3 +51,19 @@ a {
 a:visited {
     color: #8c9eff;
 }
+
+h3 {
+    margin: 20px 20px 5px 20px;
+    color: #ffffff;
+    font-size: 18px;
+    font-weight: normal;
+}
+
+.content > div {
+    margin-bottom: 10px;
+}
+
+.content img {
+    display: block;
+    margin: 0;
+}
