@@ -25,7 +25,7 @@ def load_config():
 config = load_config()
 
 PORT = config.get('web', {}).get('port', 9000)
-LOG_FILE = config.get('monitoring', {}).get('log_file', '/var/log/pi_monitor.json')
+LOG_FILE = config.get('monitoring', {}).get('log_file', '/opt/tmp/pi_monitor.json')
 RESOURCE_DIR = config.get('web', {}).get('resource_dir', '/usr/share/pi_monitor')
 PAGE_TITLE = config.get('web', {}).get('title', 'RPi monitoring')
 
@@ -246,8 +246,8 @@ class NetworkGraph(MetricGraph):
         net_data = {}
         for d in data:
             for iface, stats in d['network'].items():
-                net_data.setdefault(f{iface}_rx, []).append(stats.get('rx_speed', 0) / 1024 / 1024)
-                net_data.setdefault(f{iface}_tx, []).append(stats.get('tx_speed', 0) / 1024 / 1024)
+                net_data.setdefault(f"{iface}_rx", []).append(stats.get('rx_speed', 0) / 1024 / 1024)
+                net_data.setdefault(f"{iface}_tx", []).append(stats.get('tx_speed', 0) / 1024 / 1024)
         
         all_values = [v for values in net_data.values() for v in values]
         self.validate_limits(max(all_values) if all_values else 0)
@@ -270,8 +270,8 @@ class DiskIOGraph(MetricGraph):
         io_data = {}
         for d in data:
             for device, stats in d.get('disk_io', {}).items():
-                io_data.setdefault(f{device}_read, []).append(stats.get('read_count', 0))
-                io_data.setdefault(f{device}_write, []).append(stats.get('write_count', 0))
+                io_data.setdefault(f"{device}_read", []).append(stats.get('read_count', 0))
+                io_data.setdefault(f"{device}_write", []).append(stats.get('write_count', 0))
         
         all_values = [v for values in io_data.values() for v in values]
         self.validate_limits(max(all_values) if all_values else 0)
@@ -304,6 +304,16 @@ def generate_graph(metric, hours=None, mobile=False):
         
         figsize = (12, 5) if mobile else (18, 4.5)
         fig, ax = plt.subplots(figsize=figsize)
+        fig.patch.set_facecolor("#1a1a1a")
+        ax.set_facecolor("#1a1a1a")
+        ax.spines["bottom"].set_color("#666")
+        ax.spines["top"].set_color("#666")
+        ax.spines["left"].set_color("#666")
+        ax.spines["right"].set_color("#666")
+        ax.tick_params(colors="#e0e0e0")
+        ax.xaxis.label.set_color("#e0e0e0")
+        ax.yaxis.label.set_color("#e0e0e0")
+        ax.title.set_color("#ffffff")
         
         if timestamps and not hours:
             start_date = timestamps[0].date()
@@ -328,6 +338,13 @@ def generate_graph(metric, hours=None, mobile=False):
         ax.set_ylabel(graph.ylabel)
         ax.set_title(graph.title)
         graph.set_limits(ax)
+        
+        legend = ax.get_legend()
+        if legend:
+            legend.get_frame().set_facecolor("#2a2a2a")
+            legend.get_frame().set_edgecolor("#666")
+            for text in legend.get_texts():
+                text.set_color("#e0e0e0")
         
         from matplotlib.dates import HourLocator, MinuteLocator, DateFormatter
         from matplotlib.ticker import MaxNLocator

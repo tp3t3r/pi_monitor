@@ -21,7 +21,7 @@ config = load_config()
 
 # Configuration
 INTERVAL = config.get('monitoring', {}).get('interval', 60)
-LOG_FILE = config.get('monitoring', {}).get('log_file', '/var/log/pi_monitor.json')
+LOG_FILE = config.get('monitoring', {}).get('log_file', '/opt/tmp/pi_monitor.json')
 RETENTION_DAYS = config.get('monitoring', {}).get('retention_days', 7)
 ENABLE_PROFILING = config.get('monitoring', {}).get('enable_profiling', False)
 

@@ -2,12 +2,12 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title id="page-title">RPi monitoring</title>
+    <meta http-equiv="refresh" content="45">
+    <title>RPi monitoring</title>
     <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-    <h1 id="main-title">RPi monitoring</h1>
-    <div id="uptime" style="margin: 20px; font-size: 14px; color: #666;"></div>
+    <h1>RPi monitoring</h1>
     <div class="tabs">
         <button class="tab active" onclick="showTab('hour')">Last Hour</button>
         <button class="tab" onclick="showTab('all')">All Records</button>
@@ -43,25 +43,6 @@
         event.target.classList.add('active');
         document.getElementById(tab).classList.add('active');
     }
-    
-    function updateUptime() {
-        fetch('/uptime')
-            .then(r => r.text())
-            .then(uptime => document.getElementById('uptime').textContent = 'System uptime: ' + uptime);
-    }
-    
-    function loadConfig() {
-        fetch('/config')
-            .then(r => r.json())
-            .then(config => {
-                document.getElementById('page-title').textContent = config.title;
-                document.getElementById('main-title').textContent = config.title;
-            });
-    }
-    
-    loadConfig();
-    updateUptime();
-    setInterval(updateUptime, 60000);
     </script>
 </body>
 </html>
