@@ -38,6 +38,8 @@
         <div id="diskio"><img src="/hour/diskio" width="100%"></div>
     </div>
     <script>
+    const pageLoadStart = Date.now();
+    
     function showTab(tab) {
         document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
@@ -46,17 +48,16 @@
     }
     
     function updateInfo() {
-        const start = Date.now();
         fetch('/info')
             .then(r => r.json())
             .then(data => {
-                const duration = Date.now() - start;
+                const loadTime = Date.now() - pageLoadStart;
                 document.getElementById('info').textContent = 
-                    'System uptime: ' + data.uptime + ' | Page generation: ' + duration + 'ms';
+                    'System uptime: ' + data.uptime + ' | Page load: ' + loadTime + 'ms';
             });
     }
     
-    updateInfo();
+    window.addEventListener('load', updateInfo);
     setInterval(updateInfo, 45000);
     </script>
 </body>
