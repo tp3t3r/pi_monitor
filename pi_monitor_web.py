@@ -82,7 +82,7 @@ def plot_with_gaps(ax, ts, vals, **kwargs):
         y_min, y_max = ax.get_ylim()
         
         for i in range(len(ts)):
-            ax.fill_between([ts[i]], [vals[i]], color=plot_color, alpha=0.2)
+            ax.fill_between([ts[i]], [vals[i]], color=line.get_color(), alpha=0.2)
         return
         
     intervals = [(ts[i] - ts[i-1]).total_seconds() for i in range(1, len(ts))]
