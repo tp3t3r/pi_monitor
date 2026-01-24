@@ -21,7 +21,7 @@ config = load_config()
 
 # Configuration
 INTERVAL = config.get('monitoring', {}).get('interval', 60)
-LOG_FILE = config.get('monitoring', {}).get('log_file', '/opt/tmp/collected_data.json')
+DATA_FILE = config.get('monitoring', {}).get('data_file', '/opt/tmp/collected_data.json')
 RETENTION_DAYS = config.get('monitoring', {}).get('retention_days', 7)
 ENABLE_PROFILING = config.get('monitoring', {}).get('enable_profiling', False)
 
@@ -177,12 +177,12 @@ metrics = {
 
 
 def cleanup_old_data():
-    if not os.path.exists(LOG_FILE):
+    if not os.path.exists(DATA_FILE):
         return
     cutoff = (datetime.now() - timedelta(days=RETENTION_DAYS)).isoformat()
-    with open(LOG_FILE) as f:
+    with open(DATA_FILE) as f:
         data = [json.loads(l) for l in f if json.loads(l)['timestamp'] >= cutoff]
-    with open(LOG_FILE, 'w') as f:
+    with open(DATA_FILE, 'w') as f:
         for entry in data:
             f.write(json.dumps(entry) + '\n')
 
@@ -197,7 +197,7 @@ last_write = datetime.now()
 def flush_buffer(signum=None, frame=None):
     global buffer, last_write
     if buffer:
-        with open(LOG_FILE, 'a') as f:
+        with open(DATA_FILE, 'a') as f:
             for e in buffer:
                 f.write(json.dumps(e) + '\n')
         buffer = []
@@ -234,7 +234,7 @@ while True:
     
     # Write to disk every hour
     if (datetime.now() - last_write).total_seconds() >= 3600:
-        with open(LOG_FILE, 'a') as f:
+        with open(DATA_FILE, 'a') as f:
             for e in buffer:
                 f.write(json.dumps(e) + '\n')
         buffer = []
