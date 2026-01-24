@@ -25,7 +25,7 @@ def load_config():
 config = load_config()
 
 PORT = config.get('web', {}).get('port', 9000)
-LOG_FILE = config.get('monitoring', {}).get('log_file', '/opt/tmp/collected_data.json')
+DATA_FILE = config.get('monitoring', {}).get('data_file', '/opt/tmp/collected_data.json')
 INTERVAL = config.get("monitoring", {}).get("interval", 60)
 RESOURCE_DIR = config.get('web', {}).get('resource_dir', '/usr/share/pi_monitor')
 PAGE_TITLE = config.get('web', {}).get('title', 'RPi monitoring')
@@ -38,7 +38,7 @@ def read_logs(hours=None):
     max_lines = 100 if hours else 1000
     
     try:
-        with open(LOG_FILE, "r") as f:
+        with open(DATA_FILE, "r") as f:
             all_lines = f.readlines()
             for line in all_lines[-max_lines:]:
                 if line.strip():
