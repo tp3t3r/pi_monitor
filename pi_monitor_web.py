@@ -333,7 +333,6 @@ def generate_graph(metric, hours=None, mobile=False):
             return None
         
         graph.plot(ax, data, timestamps, should_downsample)
-        ax.set_ylabel(graph.ylabel)
         graph.set_limits(ax)
         
         legend = ax.get_legend()
