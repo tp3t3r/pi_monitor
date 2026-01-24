@@ -19,10 +19,10 @@ def load_config():
 
 config = load_config()
 
-LOG_FILE = config.get('LOG_FILE', os.getenv('LOG_FILE', '/opt/tmp/collected_data.json'))
+DATA_FILE = config.get('monitoring', {}).get('data_file', os.getenv('DATA_FILE', '/opt/tmp/collected_data.json'))
 
 try:
-    with open(LOG_FILE) as f:
+    with open(DATA_FILE) as f:
         last_line = None
         for line in f:
             last_line = line
@@ -49,6 +49,6 @@ try:
         else:
             print("No data available")
 except FileNotFoundError:
-    print(f"Log file not found: {LOG_FILE}")
+    print(f"Log file not found: {DATA_FILE}")
 except Exception as e:
     print(f"Error: {e}")
