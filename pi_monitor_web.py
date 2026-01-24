@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import numpy as np
 import io
+import time
 
 # Load config
 def load_config():
@@ -25,6 +26,7 @@ config = load_config()
 
 PORT = config.get('web', {}).get('port', 9000)
 LOG_FILE = config.get('monitoring', {}).get('log_file', '/opt/tmp/collected_data.json')
+INTERVAL = config.get("monitoring", {}).get("interval", 60)
 RESOURCE_DIR = config.get('web', {}).get('resource_dir', '/usr/share/pi_monitor')
 PAGE_TITLE = config.get('web', {}).get('title', 'RPi monitoring')
 LISTEN_ADDR = config.get("web", {}).get("listen")
@@ -282,6 +284,25 @@ class DiskIOGraph(MetricGraph):
         ax.legend(loc='upper right')
 
 
+
+class GraphCache:
+    def __init__(self, interval):
+        self.interval = interval
+        self.cache = {}
+        self.timestamp = 0
+
+    def is_expired(self):
+        return time.time() - self.timestamp > self.interval
+
+    def get(self, key):
+        if self.is_expired():
+            return None
+        return self.cache.get(key)
+
+    def set_all(self, data):
+        self.cache = data
+        self.timestamp = time.time()
+
 graphs = {
     'cpu': CPUGraph(config.get('metrics', {}).get('cpu', {})),
     'temp': TempGraph(config.get('metrics', {}).get('temp', {})),
@@ -291,6 +312,19 @@ graphs = {
     'diskio': DiskIOGraph(config.get('metrics', {}).get('diskio', {}))
 }
 
+
+
+def generate_all_graphs(mobile=False):
+    result = {}
+    for view in ["hour", "all"]:
+        for metric in graphs.keys():
+            hours = 1 if view == "hour" else None
+            img = generate_graph(metric, hours=hours, mobile=mobile)
+            if img:
+                result[f"{view}/{metric}"] = img
+    return result
+
+cache = GraphCache(INTERVAL)
 
 def generate_graph(metric, hours=None, mobile=False):
     try:
@@ -433,7 +467,12 @@ class Handler(BaseHTTPRequestHandler):
             mobile = any(x in user_agent for x in ['mobile', 'android', 'iphone', 'ipad'])
             
             if metric in graphs:
-                img = generate_graph(metric, hours=1 if view == 'hour' else None, mobile=mobile)
+                cache_key = f"{view}/{ metric}"
+
+                if not img:
+                    all_graphs = generate_all_graphs(mobile)
+                    cache.set_all(all_graphs)
+                    img = all_graphs.get(cache_key)
                 
                 if img:
                     self.send_response(200)
@@ -448,7 +487,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
         else:
             self.send_response(404)
-            self.end_headers()
+print(f"Starting web server on port {PORT}")
 print(f"Starting web server on port {PORT}")
 print(f"Starting web server on port {PORT}")
 HTTPServer((LISTEN_ADDR, PORT), Handler).serve_forever()
