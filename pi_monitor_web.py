@@ -51,7 +51,18 @@ def read_logs(hours=None):
         pass
     
     if hours:
-        return data[-60:] if len(data) >= 60 else data
+        now = datetime.now()
+        cutoff = now - timedelta(hours=1)
+        filtered = [d for d in data if datetime.fromisoformat(d['timestamp']) >= cutoff]
+        
+        minute_data = {}
+        for d in filtered:
+            ts = datetime.fromisoformat(d['timestamp'])
+            minute_key = ts.replace(second=0, microsecond=0)
+            if minute_key not in minute_data:
+                minute_data[minute_key] = d
+        
+        return [minute_data[k] for k in sorted(minute_data.keys())]
     
     return data
 
@@ -344,10 +355,8 @@ def generate_graph(metric, hours=None, mobile=False):
         
         if timestamps:
             if hours:
-                # Round down to previous :00 minute
-                start_time = timestamps[0].replace(second=0, microsecond=0)
-                start_time = start_time.replace(minute=(start_time.minute // 10) * 10)
-                ax.set_xlim(left=start_time)
+                now = datetime.now()
+                ax.set_xlim(left=now - timedelta(hours=1), right=now)
             else:
                 ax.set_xlim(left=timestamps[0])
         
