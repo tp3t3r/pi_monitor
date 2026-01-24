@@ -13,6 +13,7 @@ import matplotlib.colors as mcolors
 import numpy as np
 import io
 import time
+import time as time_module
 
 # Load config
 def load_config():
@@ -34,6 +35,7 @@ MAX_POINTS = config.get("web", {}).get("max_points")
 
 
 def read_logs(hours=None):
+    _start = time_module.time()
     data = []
     max_lines = 100 if hours else 1000
     
@@ -64,6 +66,7 @@ def read_logs(hours=None):
             if minute_key not in minute_data:
                 minute_data[minute_key] = d
         
+        print(f"read_logs({hours}): {time_module.time()-_start:.3f}s", file=sys.stderr)
         return [minute_data[k] for k in sorted(minute_data.keys())]
     
     return data
@@ -315,6 +318,7 @@ graphs = {
 
 
 def generate_all_graphs(mobile=False):
+    _start = time_module.time()
     result = {}
     for view in ["hour", "all"]:
         for metric in graphs.keys():
@@ -322,6 +326,7 @@ def generate_all_graphs(mobile=False):
             img = generate_graph(metric, hours=hours, mobile=mobile)
             if img:
                 result[f"{view}/{metric}"] = img
+    print(f"generate_all_graphs: {time_module.time()-_start:.3f}s", file=sys.stderr)
     return result
 
 cache = GraphCache(INTERVAL)
