@@ -469,6 +469,7 @@ class Handler(BaseHTTPRequestHandler):
             if metric in graphs:
                 cache_key = f"{view}/{ metric}"
 
+                img = cache.get(cache_key)
                 if not img:
                     all_graphs = generate_all_graphs(mobile)
                     cache.set_all(all_graphs)
