@@ -489,6 +489,4 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send_response(404)
 print(f"Starting web server on port {PORT}")
-print(f"Starting web server on port {PORT}")
-print(f"Starting web server on port {PORT}")
 HTTPServer((LISTEN_ADDR, PORT), Handler).serve_forever()
